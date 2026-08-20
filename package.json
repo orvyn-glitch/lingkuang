@@ -1,0 +1,59 @@
+{
+  "name": "lingkuang",
+  "productName": "灵框 LingKuang",
+  "version": "3.0.0",
+  "description": "灵框 · 阈限梦核世界观工作台",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "author": "fu-dingyong",
+  "license": "MIT",
+  "build": {
+    "appId": "com.lingkuang.app",
+    "productName": "灵框 LingKuang",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lingkuang.js",
+      "index.html",
+      "mcp-server.js",
+      "package.json",
+      "data/character_lib.json",
+      "data/worldbuilding.js",
+      "design-system/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "artifactName": "LingKuang-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "灵框"
+    },
+    "portable": {
+      "artifactName": "LingKuang-${version}-portable-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  }
+}

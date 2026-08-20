@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# local backups（本地备份不提交）
+*.backup-*
+backup-*/
+*backup*.json
+
+# tool indexes
+.codegraph/
+
+# build output
+dist/
+
+# secrets
+.env
+.env.*
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.log
+
+# user runtime data（用户数据在系统 AppData，不随仓库分发）
+*.local.json

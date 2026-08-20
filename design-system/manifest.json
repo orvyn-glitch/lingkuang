@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "lingkuang-dreamcore",
+  "name": "灵框 LingKuang v3 — 阈限梦核",
+  "category": "Dreamlike & Experimental",
+  "description": "AI-driven plugin toolbox (Electron + React) dressed as a half-remembered dream. Warm-washed liminal lobby, fluorescent-tube green living accent, recessed 'niche-in-the-wall' depth, VHS grain, and breath-like motion. Built for an 18-year-old art student steeped in Threshold Spaces, Dreamcore, and Backrooms aesthetics.",
+  "source": {
+    "type": "bundled",
+    "origin": "hand-authored for lingkuang-v3-ui"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css"
+  },
+  "craft": {
+    "applies": [],
+    "suggested": [
+      "color",
+      "accessibility-baseline"
+    ],
+    "exemptions": []
+  }
+}

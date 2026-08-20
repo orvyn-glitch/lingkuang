@@ -1,0 +1,145 @@
+/* ─────────────────────────────────────────────────────────────────────
+ * 灵框 LingKuang v3 — 阈限梦核 (Liminal Dreamcore)
+ * tokens.css  ·  canonical compiled custom-property tokens
+ *
+ * Conforms to the Open Design token schema: every A1-identity,
+ * A1-structure, A2, and B-slot token is declared. C-extension tokens
+ * for the dreamcore brand are declared at the bottom with the --lingkuang-
+ * prefix (see BRAND_EXTENSIONS in token-schema.ts).
+ *
+ * One :root block is pasted wholesale into a single <style> in each
+ * artifact — everything a component needs resolves here.
+ * ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── A1-identity · surface ─────────────────────────────────── */
+  /* 褪色的殿堂 — the faded warm lobby that anchors the liminal look */
+  --bg:           #c5c2ba;
+  /* 蒙灰玻璃 — recessed panel, slightly blurred (niche in the wall) */
+  --surface:      #cecbc7;
+  /* 内墙 — a step-lighter interior surface for nested cards */
+  --surface-2:    #d6d3ca;
+
+  /* ── A1-identity · foreground ──────────────────────────────── */
+  /* 锈铅 — primary text on the light canvas (warm mossy iron) */
+  --fg:           #3a3a34;
+  /* 晕影 — secondary tier on light canvas */
+  --muted:        #9b998c;
+  /* 荧光白 — inverse text on dark chrome surfaces */
+  --fg-inverse:   #e8e7df;
+
+  /* ── B-slot · aliases on the light theme ───────────────────── */
+  --surface-warm: #cfcec7;   /* 走廊暖壁 — tertiary warm tier */
+  --fg-2:         #6b6a5f;   /* 晕影 — second fg tier */
+  --meta:         #7c7a6f;   /* 裂纹 — metadata tier */
+  --border-soft:  rgba(58,58,52,0.10);  /* 淡阈线 — quiet inner divider */
+
+  /* ── A1-identity · border ──────────────────────────────────── */
+  /* 阈线 — the threshold line between walls */
+  --border:       rgba(58,58,52,0.16);
+  --border-strong:rgba(58,58,52,0.30);
+
+  /* ── A1-identity · accent (the living fluorescent thing) ───── */
+  /* 冷荧光绿 — flat/tube-green; the ONLY living color for interactions */
+  --accent:       #9ec262;
+  --accent-2:     #dfc073;   /* 后室黄 — AI avatar / narrative accent (C) */
+
+  /* ── A1-identity · dark chrome (the seam between rooms) ────── */
+  --chrome:       #0f0f11;   /* 荧光框 — sidebar / top command strip */
+  --chrome-2:     #1a1a1d;   /* 暗房 — dialogs / floating windows (C) */
+
+  /* ── A2 · accent states ────────────────────────────────────── */
+  --accent-on:      #20241c;                       /* mossy ink on green */
+  --accent-hover:   #aecf76;                       /* lifted fluor green */
+  --accent-active:  #8cb455;                       /* sunk fluor green */
+
+  /* ── A2 · semantic (muted, warm, inside the washed palette) ── */
+  --success:  #6f9e6f;   /* 苔痕绿 — moss */
+  --warn:     #c9a24b;   /* 锈黄 — backrooms yellow */
+  --danger:   #a8603f;   /* 锈棕 — rust, never alarm red */
+
+  /* ── A1-identity · typography ──────────────────────────────── */
+  --font-display: "Songti SC", "Noto Serif SC", Georgia, "Times New Roman", serif;
+  --font-body: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Courier New", monospace;
+
+  /* ── A1-structure · type scale ─────────────────────────────── */
+  --text-xs:   0.75rem;   /* 12px */
+  --text-sm:   0.8438rem; /* 13.5px */
+  --text-base: 0.9375rem; /* 15px */
+  --text-lg:   1.125rem;  /* 18px */
+  --text-xl:   1.375rem;  /* 22px — wordmark tier */
+  --text-2xl:  1.75rem;   /* 28px — one remembered heading */
+  --text-3xl:  2.25rem;   /* 36px — hero / welcome */
+  --text-4xl:  3rem;      /* 48px — the empty-lobby statement */
+
+  /* ── A1-structure · leading & tracking ─────────────────────── */
+  --leading-tight:    1.25;
+  --leading-body:     1.65;
+  --tracking-display: 0.06em;
+  --tracking-eyebrow: 0.14em;
+
+  /* ── A2 · spacing (8px base — roomy, peaceful) ─────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+
+  /* ── A1-structure · section rhythm ─────────────────────────── */
+  --section-y-desktop: 56px;
+  --section-y-tablet:  40px;
+  --section-y-phone:   28px;
+
+  /* ── A2 · radius (recessed niches, gentle corners) ─────────── */
+  --radius-sm:   8px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 9999px;
+
+  /* ── A2 · elevation (recessed, never floating) ─────────────── */
+  --elev-flat:   none;
+  --elev-ring:   0 0 0 1px var(--border);
+  /* the "niche" — inset recess + hairline, NOT a raised drop shadow */
+  --elev-raised: inset 0 1px 2px rgba(58,58,52,0.10), 0 0 0 1px var(--border);
+  /* soft bloom for the living accent (no blur-shadow on cards) */
+  --elev-bloom:  0 0 24px rgba(158,194,98,0.28);
+
+  /* ── A2 · focus ────────────────────────────────────────────── */
+  --focus-ring: 0 0 0 3px rgba(158,194,98,0.30);
+
+  /* ── A2 · motion (dreamy, breath-like) ─────────────────────── */
+  --motion-fast:   180ms;
+  --motion-base:   320ms;
+  --motion-slow:   640ms;
+  --ease-standard: cubic-bezier(0.22, 0.75, 0.25, 1);
+
+  /* ── A1-structure · layout (desktop-first; app is Electron) ── */
+  --container-max: 1400px;
+  --container-gutter-desktop: 32px;
+  --container-gutter-tablet:  24px;
+  --container-gutter-phone:   16px;
+
+  /* ── C-extensions · brand-specific (lingkuang) ─────────────── */
+  --lk-sidebar-width:    220px;
+  --lk-sidebar-collapsed: 56px;
+  --lk-cell:             40px;                 /* recessed icon tile */
+  --lk-grain-opacity:    0.06;                 /* VHS fug overlay */
+  --lk-scanline-gap:     4px;                  /* CRT line spacing */
+
+  /* The breath — a dedicated keyframe is defined in each artifact;
+     this token only seeds the resting glow. */
+}
+
+/* Reduced motion: kill the breath + staggers, keep short fades. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 120ms;
+    --motion-base: 160ms;
+    --motion-slow: 200ms;
+  }
+}
