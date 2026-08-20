@@ -22,18 +22,30 @@
 | 📝 **Markdown 编辑器** | 双栏实时预览，文稿列表管理 |
 | 🌀 **AI 面板（The Hum）** | 常驻的呼吸灯，等你想起 |
 
-## 📦 依赖
-
-- **Node.js** + npm
-- **Electron**（`npm install` 自动装）
-- **Ollama**（可选，仅联想图需要）：`qwen2.5:7b` 模型
-
 ## 🚀 安装运行
+
+### 普通用户：直接下载，不用装任何环境
+
+从 [Releases](https://github.com/orvyn-glitch/lingkuang/releases) 下载：
+
+- `LingKuang-x.x.x-x64.exe` — 安装版（双击安装）
+- `LingKuang-x.x.x-portable-x64.exe` — 便携版（双击即用，免安装）
+
+不需要 Node.js / npm / 任何命令行。
+
+### 开发者：源码运行
+
+需要 **Node.js 18+**（含 npm）：
 
 ```bash
 npm install
 npm start
 ```
+
+### 依赖说明
+
+- **Electron**：`npm install` 自动安装
+- **Ollama**（可选，仅联想图需要）：`qwen2.5:7b` 模型
 
 ### 启用词义联想（可选）
 
