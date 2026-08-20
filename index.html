@@ -983,6 +983,14 @@ body.is-idle .veil__grain {
   cursor: pointer;
 }
 .tl__multi-toggle.is-on { background: var(--accent); color: var(--accent-on); }
+/* 剧情范围面板的吸取按钮：大按钮全宽，好点 */
+.story-pick-btn {
+  width: 100%;
+  margin: 6px 0;
+  padding: 9px 12px;
+  font-size: var(--text-sm);
+  text-align: center;
+}
 
 /* ── loop (cycle) frame for cyclic timelines ──────────────── */
 .tl__loop {
@@ -3169,17 +3177,13 @@ body.is-idle .veil__grain {
         <span id="story-start-picked-name"></span>
         <button class="tl__eyedrop" id="story-start-unpick" title="取消吸取">×</button>
       </div>
-      <div class="tl__eyedrop-row">
-        <button class="tl__eyedrop" id="story-pick-start" title="吸管：吸取起始节点">◉ 吸取</button>
-      </div>
+      <button class="btn btn--ghost story-pick-btn" id="story-pick-start">◉ 吸取起始节点</button>
       <div class="tl__detail-sec-title">结束节点</div>
       <div class="tl__picked-node" id="story-end-picked" style="display:none">
         <span id="story-end-picked-name"></span>
         <button class="tl__eyedrop" id="story-end-unpick" title="取消吸取">×</button>
       </div>
-      <div class="tl__eyedrop-row">
-        <button class="tl__eyedrop" id="story-pick-end" title="吸管：吸取结束节点">◉ 吸取</button>
-      </div>
+      <button class="btn btn--ghost story-pick-btn" id="story-pick-end">◉ 吸取结束节点</button>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">

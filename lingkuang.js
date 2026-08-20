@@ -1919,6 +1919,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   function startEyedrop(target) {
     eyedropTarget = target;
     loopModal.style.display = 'none';
+    if (storyModal) storyModal.style.display = 'none';   /* 剧情范围面板也收起 */
     stage.classList.add('is-eyedropping');
     var b = document.getElementById('loop-pick-' + target);
     if (b) b.classList.add('is-picking');
