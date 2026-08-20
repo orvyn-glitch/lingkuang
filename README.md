@@ -105,6 +105,10 @@ lingkuang-v3-ui/
 - 🐛 [已知 Bug](docs/BUGS.md) — 未修复问题清单
 - 🗺️ [功能路线图](docs/ROADMAP.md) — 愿景与待办，含拆分建议
 
+## 📖 用户手册
+
+- 🎮 [操作手册](docs/USER_GUIDE.md) — 时间线 / 角色生成 / 联想图 / 剧情范围 / 编辑器 完整操作说明
+
 ---
 
 *"The Seam → The Lobby" — 走廊尽头的灯还亮着。*
