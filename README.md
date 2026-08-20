@@ -1,8 +1,14 @@
 # 灵框 LingKuang v3
 
+[![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/orvyn-glitch/lingkuang)](https://github.com/orvyn-glitch/lingkuang/releases)
+[![Electron](https://img.shields.io/badge/Electron-43-47848F)](package.json)
+
 **阈限梦核（Liminal Dreamcore）世界观工作台** —— 一个自带氛围的创作工具：时间线、角色生成、词义联想图，都住在一条褪色的走廊里。
 
 > 视觉语言：暖灰米底、冷荧光绿点缀、内凹壁龛、VHS 颗粒。它不是"工具"，是一间废弃大厅。
+
+![灵框主界面](docs/screenshot.png)
 
 ---
 
