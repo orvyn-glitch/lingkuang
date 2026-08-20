@@ -2802,7 +2802,7 @@ body.is-idle .veil__grain {
         <span class="glyph">口</span><span>编辑器</span>
       </button>
       <button class="seam__item" data-nav="char">
-        <span class="glyph">♟</span><span>角色生成</span>
+        <span class="glyph">♟</span><span>灵感触发器</span>
       </button>
       <button class="seam__item" data-nav="lobby">
         <span class="glyph">⚙</span><span>系统</span>
@@ -2858,7 +2858,7 @@ body.is-idle .veil__grain {
 
       <article class="niche" data-open-tool="char">
         <div class="niche__cell">骰</div>
-        <div class="niche__title">角色生成</div>
+        <div class="niche__title">灵感触发器</div>
         <p class="niche__desc">从词库的角落里抽一张脸。发色、身世、执念——都由骰子替你决定。</p>
         <div class="niche__meta"><span>随机角色 · 58 分类</span><span>4658 词条</span></div>
       </article>
@@ -2952,6 +2952,20 @@ body.is-idle .veil__grain {
           <div>
             <div class="tl__detail-sec-title">关联地点</div>
             <div class="tl__detail-chips" id="d-places"></div>
+          </div>
+          <!-- 角色档案（剧情/人物节点：初稿 + 演变） -->
+          <div id="d-profile" style="display:none">
+            <div class="tl__detail-sec-title">角色档案 · 初稿</div>
+            <div class="tl__detail-chips" id="d-profile-list"></div>
+            <button class="tl__eyedrop" id="d-profile-add" style="width:100%;margin-top:6px;">＋ 添加特征</button>
+            <div class="tl__detail-sec-title" style="margin-top:var(--space-3);">角色演变</div>
+            <div class="tl__detail-chips" id="d-evolution" style="flex-direction:column;align-items:stretch;gap:2px;"></div>
+          </div>
+          <!-- 事件影响（世界事件节点：影响哪些角色的哪些方面） -->
+          <div id="d-impacts" style="display:none">
+            <div class="tl__detail-sec-title">角色影响</div>
+            <div class="tl__detail-chips" id="d-impacts-list"></div>
+            <button class="tl__eyedrop" id="d-impacts-add" style="width:100%;margin-top:6px;">＋ 标记角色影响</button>
           </div>
           <div class="tl__detail-foot" id="d-foot"></div>
           <!-- loop settings (shown when a loop frame is clicked) -->
