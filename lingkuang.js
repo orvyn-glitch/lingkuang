@@ -422,6 +422,10 @@
     activeId = id;
     closeDetail();
     panY = 0;
+    /* 切换时间线：重置剧情范围聚焦（默认聚焦第一个范围），并刷新范围下拉 */
+    storyMode = 'focus';
+    activeStoryRangeId = null;
+    if (typeof fillStorySelect === 'function') fillStorySelect();
     /* update tab highlight without rebuilding (unified canvas keeps DOM) */
     var tabs = managerEl.querySelectorAll('.tl__tab');
     for (var i = 0; i < tabs.length; i++) {
@@ -446,6 +450,38 @@
   var multiMode = false;       /* side-by-side all timelines (aligned) */
 var nonlinearMode = false;   /* event-sequence view: nodes at FIXED pitch */
 var seqPitch = 96;           /* px between consecutive events (nonlinear) */
+
+  /* ── 剧情范围（AE 工作区式）：多范围共存，聚焦时裁剪范围外节点 ── */
+  var storyMode = 'focus';        /* 'focus' 只看剧情 / 'full' 显示世界历史 */
+  var activeStoryRangeId = null;  /* 当前聚焦的剧情范围 id */
+  function storyRangesOf(tl) { return (tl && Array.isArray(tl.storyRanges)) ? tl.storyRanges : []; }
+  function findStoryRange(tl, id) {
+    var rs = storyRangesOf(tl);
+    for (var i = 0; i < rs.length; i++) if (rs[i].id === id) return rs[i];
+    return null;
+  }
+  /* 范围起终年份 [lo, hi]；节点缺失返回 null */
+  function storyRangeSpan(tl, sr) {
+    if (!sr) return null;
+    var s = sr.startNodeId ? findNodeById(tl, sr.startNodeId) : null;
+    var e = sr.endNodeId ? findNodeById(tl, sr.endNodeId) : null;
+    if (!s || !e) return null;
+    var lo = absYearOf(s, tl), hi = absYearOf(e, tl);
+    return lo <= hi ? { lo: lo, hi: hi } : { lo: hi, hi: lo };
+  }
+  function nodeInRange(tl, sr, n) {
+    var sp = storyRangeSpan(tl, sr);
+    if (!sp) return true;   /* 范围损坏 → 不裁剪（保守） */
+    var y = absYearOf(n, tl);
+    return y >= sp.lo && y <= sp.hi;
+  }
+  /* 当前聚焦的范围（无则 null） */
+  function activeStoryRange() {
+    var tl = timelines[activeId];
+    if (storyMode !== 'focus' || !tl) return null;
+    return findStoryRange(tl, activeStoryRangeId);
+  }
+
   /* number of nodes on the ACTIVE timeline — the sequence layout fits the
      visible world only (single mode), not every hidden lane's nodes */
   function seqNodeCount() {
@@ -455,11 +491,18 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   function renderTimeline(playWake) {
     var list = order.slice();   /* unified canvas: ALL timelines always exist */
     var allNodes = [];
+    if (typeof fillStorySelect === 'function') fillStorySelect();   /* 同步剧情范围下拉（含默认聚焦） */
+    var focusRange = activeStoryRange();   /* 聚焦模式下的当前剧情范围 */
     list.forEach(function (id) {
       var tl = timelines[id];
       if (!tl) return;   /* stale order entry — skip */
       if (Array.isArray(tl.nodes)) {
-        tl.nodes.forEach(function (n) { allNodes.push({ id: id, n: n }); });
+        tl.nodes.forEach(function (n) {
+          /* 聚焦剧情范围：只保留当前时间线的范围内节点（世界历史裁剪） */
+          if (focusRange && id === activeId && !nodeInRange(tl, focusRange, n)) return;
+          if (focusRange && id !== activeId) return;   /* 聚焦时只看当前时间线 */
+          allNodes.push({ id: id, n: n });
+        });
       }
     });
     renderTimelineTabs();
@@ -525,6 +568,12 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         renderLoopFrame(lane, tl, L);
         renderLoopNodes(lane, tl, L);
       });
+      /* 渲染剧情范围条（AE 工作区式：当前时间线的所有范围；聚焦的加亮） */
+      if (id === activeId) {
+        storyRangesOf(tl).forEach(function (sr) {
+          renderStoryBar(lane, tl, sr);
+        });
+      }
     });
 
     /* auto-split labels up/down so nearby names never overlap */
@@ -611,8 +660,144 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     }
   }
 
-  /* 循环重复段（count > 1）的"幽灵节点"：半透明虚线提示这些节点在上一次轮回也发生了 */
-  /* 渲染循环重复段（count>1）的节点：与第一段内容完全同步的实节点。
+  /* 渲染剧情范围条（AE 工作区式：顶部色带 + 范围名；聚焦的加亮） */
+  function renderStoryBar(lane, tl, sr) {
+    var sp = storyRangeSpan(tl, sr);
+    if (!sp) return;
+    var el = document.createElement('div');
+    el.className = 'tl__storybar' + (activeStoryRangeId === sr.id ? ' is-active' : '');
+    el.style.left = (timeToX(sp.lo) + panXBase) + 'px';
+    el.style.width = Math.max(20, timeToX(sp.hi) - timeToX(sp.lo)) + 'px';
+    var label = document.createElement('div');
+    label.className = 'storybar-label';
+    label.textContent = sr.name || '剧情范围';
+    el.appendChild(label);
+    lane.appendChild(el);
+  }
+
+  /* ── 剧情范围：控件 + 创建面板（AE 工作区式）────────── */
+  var storyBtn = document.getElementById('tl-story-btn');
+  var storySelect = document.getElementById('tl-story-select');
+  var storyModal = document.getElementById('story-modal');
+  var srStartId = null, srEndId = null;   /* 创建面板的起终节点（吸管吸取） */
+
+  function fillStorySelect() {
+    var tl = timelines[activeId];
+    var rs = tl ? storyRangesOf(tl) : [];
+    storySelect.innerHTML = '';
+    if (!rs.length) {
+      storySelect.style.display = 'none';
+      storyBtn.classList.remove('is-on');
+      storyBtn.textContent = '剧情';
+      return;
+    }
+    var optFull = document.createElement('option');
+    optFull.value = '__full__';
+    optFull.textContent = '世界历史';
+    storySelect.appendChild(optFull);
+    rs.forEach(function (sr) {
+      var o = document.createElement('option');
+      o.value = sr.id;
+      o.textContent = (sr.name || '剧情范围');
+      storySelect.appendChild(o);
+    });
+    storySelect.style.display = '';
+    /* 默认聚焦第一个范围（无聚焦时） */
+    if (!activeStoryRangeId || !findStoryRange(tl, activeStoryRangeId)) {
+      activeStoryRangeId = rs[0].id;
+    }
+    storySelect.value = activeStoryRangeId;
+    storyBtn.classList.toggle('is-on', storyMode === 'focus');
+    storyBtn.textContent = storyMode === 'focus' ? '剧情' : '历史';
+  }
+  storyBtn.addEventListener('click', function () {
+    var tl = timelines[activeId];
+    if (!tl || !storyRangesOf(tl).length) return;
+    storyMode = storyMode === 'focus' ? 'full' : 'focus';
+    fillStorySelect();
+    renderTimeline(false);
+    applyModeView(); applyPan();
+  });
+  storySelect.addEventListener('change', function () {
+    var v = storySelect.value;
+    if (v === '__full__') storyMode = 'full';
+    else {
+      storyMode = 'focus';
+      activeStoryRangeId = v;
+    }
+    fillStorySelect();
+    renderTimeline(false);
+    applyModeView(); applyPan();
+  });
+
+  function openStoryRangeModal() {
+    var tl = timelines[activeId];
+    if (!tl) return;
+    document.getElementById('story-modal-title').textContent = '剧情范围 · ' + tl.name;
+    document.getElementById('story-modal-name').value = '';
+    srStartId = null; srEndId = null;
+    updateStoryPickUI();
+    storyModal.style.display = 'flex';
+    document.getElementById('story-modal-name').focus();
+  }
+  function updateStoryPickUI() {
+    var tl = timelines[activeId];
+    var sp = document.getElementById('story-start-picked');
+    var ep = document.getElementById('story-end-picked');
+    var sn = document.getElementById('story-start-picked-name');
+    var en = document.getElementById('story-end-picked-name');
+    if (srStartId) {
+      var sn2 = findNodeById(tl, srStartId);
+      sn.textContent = sn2 ? sn2.title : '已吸取节点';
+      sp.style.display = 'flex';
+    } else sp.style.display = 'none';
+    if (srEndId) {
+      var en2 = findNodeById(tl, srEndId);
+      en.textContent = en2 ? en2.title : '已吸取节点';
+      ep.style.display = 'flex';
+    } else ep.style.display = 'none';
+  }
+  function confirmStoryRange() {
+    var tl = timelines[activeId];
+    var errEl = document.getElementById('story-modal-error');
+    if (!srStartId || !srEndId) {
+      errEl.textContent = '请用吸管吸取起始和结束节点';
+      errEl.style.display = '';
+      return;
+    }
+    if (srStartId === srEndId) {
+      errEl.textContent = '起始与结束不能是同一节点';
+      errEl.style.display = '';
+      return;
+    }
+    var name = document.getElementById('story-modal-name').value.trim() || ('剧情范围 ' + (storyRangesOf(tl).length + 1));
+    if (!Array.isArray(tl.storyRanges)) tl.storyRanges = [];
+    tl.storyRanges.push({ id: 'sr_' + Date.now(), name: name, startNodeId: srStartId, endNodeId: srEndId });
+    saveTimelines();
+    storyModal.style.display = 'none';
+    /* 创建后自动聚焦新范围 */
+    activeStoryRangeId = tl.storyRanges[tl.storyRanges.length - 1].id;
+    storyMode = 'focus';
+    fillStorySelect();
+    renderTimeline(false);
+    applyModeView(); applyPan();
+  }
+  document.getElementById('story-modal-cancel').addEventListener('click', function () { storyModal.style.display = 'none'; });
+  document.getElementById('story-modal-ok').addEventListener('click', confirmStoryRange);
+  document.getElementById('story-pick-start').addEventListener('click', function () {
+    eyedropOwner = 'story';
+    startEyedrop('start');
+    document.getElementById('story-modal-error').style.display = 'none';
+  });
+  document.getElementById('story-pick-end').addEventListener('click', function () {
+    eyedropOwner = 'story';
+    startEyedrop('end');
+    document.getElementById('story-modal-error').style.display = 'none';
+  });
+  document.getElementById('story-start-unpick').addEventListener('click', function () { srStartId = null; updateStoryPickUI(); });
+  document.getElementById('story-end-unpick').addEventListener('click', function () { srEndId = null; updateStoryPickUI(); });
+
+  /* 循环重复段（count > 1）的"幽灵节点"：半透明虚线提示这些节点在上一次轮回也发生了 */  /* 渲染循环重复段（count>1）的节点：与第一段内容完全同步的实节点。
      用 is-loop-repeat 标记 + _ghostOffset 记录偏移年数，缩放/编辑时据此重定位 */
   function renderLoopNodes(lane, tl, L) {
     var startN = findNodeById(tl, L.startNodeId);
@@ -1728,6 +1913,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   }
   /* 吸管：吸取画布节点/时间到起始/结束节点框 */
   var eyedropTarget = null;
+  var eyedropOwner = 'loop';   /* 吸管归属：'loop'（循环面板）/'story'（剧情范围面板） */
   var eyedropStartNodeId = null;   /* 起始节点吸取的已有节点 id（null=新建） */
   var eyedropEndNodeId = null;     /* 结束节点吸取的已有节点 id（null=新建） */
   function startEyedrop(target) {
@@ -3056,6 +3242,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   var CTX_ITEMS = [
     { id: 'add',       label: '添加节点' },
     { id: 'loop',      label: '创建循环' },
+    { id: 'storyrange', label: '创建剧情范围' },
     { id: 'nonlinear', label: '非线性模式', syncId: 'ctx-nonlinear' },
     { id: 'multi',     label: '并列 / 单列' },
     { id: 'worldset',  label: '切换世界观', sub: true },
@@ -3235,6 +3422,9 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       case 'del-node':
         if (actNode) deleteNode(actNode._node, actNode);
         break;
+      case 'storyrange':
+        openStoryRangeModal();
+        break;
       case 'del-loop':
         if (actLoop) deleteLoopByFrame(actLoop);
         break;
@@ -3329,12 +3519,22 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       var near = nearestNodeAt(e.clientX, e.clientY);
       if (near && near._node && near._node.id) {
         /* 点击节点：直接吸取该节点 */
-        if (eyedropTarget === 'start') eyedropStartNodeId = near._node.id;
-        else eyedropEndNodeId = near._node.id;
+        if (eyedropOwner === 'story') {
+          if (eyedropTarget === 'start') srStartId = near._node.id;
+          else srEndId = near._node.id;
+        } else {
+          if (eyedropTarget === 'start') eyedropStartNodeId = near._node.id;
+          else eyedropEndNodeId = near._node.id;
+        }
       } else {
         /* 点击空白：清空吸取的节点，吸取时间 */
-        if (eyedropTarget === 'start') eyedropStartNodeId = null;
-        else eyedropEndNodeId = null;
+        if (eyedropOwner === 'story') {
+          if (eyedropTarget === 'start') srStartId = null;
+          else srEndId = null;
+        } else {
+          if (eyedropTarget === 'start') eyedropStartNodeId = null;
+          else eyedropEndNodeId = null;
+        }
         var rect = stage.getBoundingClientRect();
         var mx = e.clientX - rect.left;
         var t = nonlinearMode
@@ -3349,14 +3549,19 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
               return bestN ? toNumber(bestN.year) - (timelines[activeId].absOffset || 0) : NaN;
             })()
           : xToTime(mx - panX) - (timelines[activeId].absOffset || 0);
-        if (isFinite(t)) {
+        if (isFinite(t) && eyedropOwner === 'loop') {
           var inp = document.getElementById('loop-modal-' + eyedropTarget);
           if (inp) inp.value = roundToBand(t);
         }
       }
       endEyedrop();
-      loopModal.style.display = 'flex';
-      updateLoopPickUI();
+      if (eyedropOwner === 'story') {
+        storyModal.style.display = 'flex';
+        updateStoryPickUI();
+      } else {
+        loopModal.style.display = 'flex';
+        updateLoopPickUI();
+      }
       return;
     }
     /* clicks on the info panel, its loop-settings, or the right-click

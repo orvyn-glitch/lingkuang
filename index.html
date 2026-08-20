@@ -945,6 +945,45 @@ body.is-idle .veil__grain {
   padding-right: 10px;
 }
 
+/* ── 剧情范围条（AE 工作区式）────────────────────────── */
+.tl__storybar {
+  position: absolute;
+  top: 0;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(158,194,98,0.14);
+  border: 1px solid rgba(158,194,98,0.45);
+  pointer-events: none;
+  z-index: 3;
+}
+.tl__storybar.is-active {
+  background: rgba(158,194,98,0.30);
+  border-color: var(--accent);
+}
+.tl__storybar .storybar-label {
+  position: absolute;
+  left: 6px;
+  top: 1px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.tl__storybar.is-active .storybar-label { color: var(--accent-on); }
+.tl__story-select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--chrome-2);
+  color: var(--fg-inverse);
+  border: 1px solid rgba(232,231,223,0.12);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+}
+.tl__multi-toggle.is-on { background: var(--accent); color: var(--accent-on); }
+
 /* ── loop (cycle) frame for cyclic timelines ──────────────── */
 .tl__loop {
   position: absolute;
@@ -2842,6 +2881,8 @@ body.is-idle .veil__grain {
       <div class="tl__manager" id="tl-manager">
         <button class="tl__multi-toggle" id="tl-nonlinear" title="事件序列视图（节点等距排列）">序列</button>
         <button class="tl__multi-toggle" id="tl-multi" title="并列显示所有时间线">并列</button>
+        <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情范围 / 显示世界历史">剧情</button>
+        <select class="tl__story-select" id="tl-story-select" style="display:none"></select>
         <div class="tl__multi-mask" id="tl-multi-mask"></div>
         <div id="tl-tabs" class="tl__tabs is-ready" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap"></div>
         <button class="tl__tab-add" id="tl-tab-add" title="新建时间线">＋</button>
@@ -3110,6 +3151,40 @@ body.is-idle .veil__grain {
     <div class="tl__modal-actions">
       <button class="btn btn--ghost" id="confirm-modal-cancel">取消</button>
       <button class="btn btn--danger" id="confirm-modal-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- story-range dialog：创建剧情范围（AE 工作区式，吸取起终节点） -->
+<div class="tl__modal" id="story-modal" style="display:none">
+  <div class="tl__modal-card">
+    <div class="tl__modal-title serif" id="story-modal-title">剧情范围</div>
+    <div class="tl__modal-body">
+      <div class="tl__modal-field">
+        <label>范围名</label>
+        <input type="text" id="story-modal-name" placeholder="如 第一章" />
+      </div>
+      <div class="tl__detail-sec-title">起始节点</div>
+      <div class="tl__picked-node" id="story-start-picked" style="display:none">
+        <span id="story-start-picked-name"></span>
+        <button class="tl__eyedrop" id="story-start-unpick" title="取消吸取">×</button>
+      </div>
+      <div class="tl__eyedrop-row">
+        <button class="tl__eyedrop" id="story-pick-start" title="吸管：吸取起始节点">◉ 吸取</button>
+      </div>
+      <div class="tl__detail-sec-title">结束节点</div>
+      <div class="tl__picked-node" id="story-end-picked" style="display:none">
+        <span id="story-end-picked-name"></span>
+        <button class="tl__eyedrop" id="story-end-unpick" title="取消吸取">×</button>
+      </div>
+      <div class="tl__eyedrop-row">
+        <button class="tl__eyedrop" id="story-pick-end" title="吸管：吸取结束节点">◉ 吸取</button>
+      </div>
+      <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
+    </div>
+    <div class="tl__modal-actions">
+      <button class="btn btn--ghost" id="story-modal-cancel">关闭</button>
+      <button class="btn btn--primary" id="story-modal-ok">创建范围</button>
     </div>
   </div>
 </div>
