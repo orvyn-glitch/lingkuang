@@ -5,6 +5,11 @@
 
 ## 时间线
 
+- [ ] **撤销（Ctrl+Z）未修好**（2026-08-20 用户反馈）
+  - 现状：`lingkuang.js` 已有 undoStack/redo（pushUndo / undoTimeline / undoRedoStack），但用户反馈仍不好用。
+  - 疑点：编辑面板内联编辑（title/desc contenteditable）、拖动年份、people/places chips 等路径是否全部 pushUndo；渲染重建后撤销/重做状态；redo 栈正确性。
+  - 待办：用户复现现象后定位；修复后补验证（多次编辑→撤销→重做→对比数据）。
+
 - [ ] **剧情范围条的拖动边界**（AE 工作区式增强）
   - 现象：范围条目前固定（创建时定起终节点），不能像 AE 工作区那样拖动两端调整。
   - 建议：范围条加拖拽手柄，拖动更新 startNodeId/endNodeId（或改存年份）。
