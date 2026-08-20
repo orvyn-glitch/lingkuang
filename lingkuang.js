@@ -662,10 +662,13 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
 
   /* 渲染剧情范围条（AE 工作区式：顶部色带 + 范围名；聚焦的加亮） */
   function renderStoryBar(lane, tl, sr) {
+    if (nonlinearMode) return;   /* 非线性序列视图不画范围条（坐标语义不同） */
     var sp = storyRangeSpan(tl, sr);
     if (!sp) return;
     var el = document.createElement('div');
     el.className = 'tl__storybar' + (activeStoryRangeId === sr.id ? ' is-active' : '');
+    el.setAttribute('data-tl', tl.id);
+    el.setAttribute('data-story', sr.id);
     el.style.left = (timeToX(sp.lo) + panXBase) + 'px';
     el.style.width = Math.max(20, timeToX(sp.hi) - timeToX(sp.lo)) + 'px';
     var label = document.createElement('div');
@@ -2504,6 +2507,22 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
           fr.style.left = fl + 'px';
           fr.style.width = fw + 'px';
         }
+      }
+    }
+    /* 剧情范围条也要跟随缩放/平移（非线性视图不画，隐藏） */
+    var storyBars = nodesEl.querySelectorAll('.tl__storybar');
+    for (var sb = 0; sb < storyBars.length; sb++) {
+      var bar = storyBars[sb];
+      var tl3 = timelines[bar.getAttribute('data-tl')];
+      if (!tl3) continue;
+      if (nonlinearMode) { bar.style.display = 'none'; continue; }
+      var sr = findStoryRange(tl3, bar.getAttribute('data-story'));
+      if (!sr) { bar.style.display = 'none'; continue; }
+      var sp = storyRangeSpan(tl3, sr);
+      bar.style.display = '';
+      if (sp) {
+        bar.style.left = (timeToX(sp.lo) + panXBase) + 'px';
+        bar.style.width = Math.max(20, timeToX(sp.hi) - timeToX(sp.lo)) + 'px';
       }
     }
     /* camera is baked into node positions — track stays viewport-sized so
