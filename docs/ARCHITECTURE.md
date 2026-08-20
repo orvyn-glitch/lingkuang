@@ -141,4 +141,4 @@ npm run dist         # 打包 Windows 安装版 + 便携版（输出 dist/）
 ## 7. 其他
 
 - **MCP**：`mcp-server.js` 用 `@modelcontextprotocol/sdk`，数据源 `%APPDATA%\lingkuang\worldbuilding.json`。
-- **词库版权**：`character_lib.json` 基于萌百（CC BY-NC-SA 非商业），与代码 MIT 分离（README 已声明）。
+- **词库版权**：`character_lib.json` 基于萌百（CC BY-NC-SA 非商业），与代码 GPL-3.0 分离（README 已声明）。

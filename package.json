@@ -10,7 +10,7 @@
     "pack": "electron-builder --dir"
   },
   "author": "fu-dingyong",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "build": {
     "appId": "com.lingkuang.app",
     "productName": "灵框 LingKuang",

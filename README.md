@@ -78,7 +78,7 @@ lingkuang-v3-ui/
 
 ## 📄 License
 
-- 代码：**MIT**（见 [LICENSE](LICENSE)）
+- 代码：**GPL-3.0**（见 [LICENSE](LICENSE)）
 - 词库：**CC BY-NC-SA 3.0**（见上）
 
 ## 🧑‍💻 参与开发
