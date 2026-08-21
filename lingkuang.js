@@ -547,10 +547,9 @@
 var nonlinearMode = false;   /* event-sequence view: nodes at FIXED pitch */
 var seqPitch = 96;           /* px between consecutive events (nonlinear) */
 
-  /* ── 时间指针：全视图的"当前时间"（已发生/未发生分界，可拖动）── */
-  var timeCursor = null;              /* 当前世界观的时间指针（小数年份；null=隐藏） */
+  /* ── 时间指针：默认工具，永远显示——按下画布即定位到鼠标位置（可拖动实时更新）── */
+  var timeCursor = 0;                 /* 当前世界观的时间指针（小数年份） */
   var timeCursorEl = document.getElementById('tl-time-cursor');
-  var cursorBtn = document.getElementById('tl-cursor-btn');
   var cursorScrub = null;            /* 指针拖动标记（左键默认工具） */
   var spaceDown = false;             /* 空格=平移画布（默认左键是指针） */
   document.addEventListener('keydown', function (e) {
@@ -563,36 +562,26 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   });
   function loadTimeCursor() {
     var ws = worldsets[activeWorldset];
-    var saved = (ws && isFinite(ws.timeCursor)) ? ws.timeCursor : null;
-    if (saved !== null) { timeCursor = saved; }
-    else {
-      /* 默认启用：放在当前时间线中间 */
-      var tl = timelines[activeId];
-      var lo = Infinity, hi = -Infinity;
-      (tl && Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
-        var y = absYearOf(n, tl);
-        if (y < lo) lo = y;
-        if (y > hi) hi = y;
-      });
-      timeCursor = isFinite(lo) ? (lo + hi) / 2 : 0;
-    }
-    if (typeof syncCursorBtn === 'function') syncCursorBtn();
-  }
-  function syncCursorBtn() {
-    if (cursorBtn) cursorBtn.classList.toggle('is-on', timeCursor !== null);
+    if (ws && isFinite(ws.timeCursor)) { timeCursor = ws.timeCursor; return; }
+    /* 默认：当前时间线中间 */
+    var tl = timelines[activeId];
+    var lo = Infinity, hi = -Infinity;
+    (tl && Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
+      var y = absYearOf(n, tl);
+      if (y < lo) lo = y;
+      if (y > hi) hi = y;
+    });
+    timeCursor = isFinite(lo) ? (lo + hi) / 2 : 0;
   }
   function saveTimeCursor() {
     var ws = worldsets[activeWorldset];
     if (!ws) { worldsets[activeWorldset] = ws = { timelines: timelines, order: order, docs: docs }; }
-    if (timeCursor === null) delete ws.timeCursor;
-    else ws.timeCursor = timeCursor;
+    ws.timeCursor = timeCursor;
     saveTimelines();
-    syncCursorBtn();
   }
   /* 指针视口位置（随 pan 跟随） */
   function updateTimeCursorPos() {
     if (!timeCursorEl) return;
-    if (timeCursor === null) { timeCursorEl.style.display = 'none'; return; }
     timeCursorEl.style.display = '';
     var x = timeToX(timeCursor) + panX;
     timeCursorEl.style.left = x + 'px';
@@ -602,36 +591,11 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   /* 节点"已发生/未发生"视觉：指针之后 is-future 淡化 */
   function applyTimeCursorState() {
     var tl = timelines[activeId];
-    if (!tl || timeCursor === null) {
-      nodesEl.querySelectorAll('.tl__n.is-future').forEach(function (el) { el.classList.remove('is-future'); });
-      return;
-    }
+    if (!tl) return;
     nodesEl.querySelectorAll('.tl__n').forEach(function (el) {
       if (!el._node) return;
       var isFuture = absYearOf(el._node, tl) > timeCursor;
       el.classList.toggle('is-future', isFuture);
-    });
-  }
-  if (cursorBtn) {
-    cursorBtn.addEventListener('click', function () {
-      if (timeCursor === null) {
-        /* 开启：默认放在当前时间线中间 */
-        var tl = timelines[activeId];
-        var lo = Infinity, hi = -Infinity;
-        (tl && Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
-          var y = absYearOf(n, tl);
-          if (y < lo) lo = y;
-          if (y > hi) hi = y;
-        });
-        timeCursor = isFinite(lo) ? (lo + hi) / 2 : 0;
-        cursorBtn.classList.add('is-on');
-      } else {
-        timeCursor = null;
-        cursorBtn.classList.remove('is-on');
-      }
-      updateTimeCursorPos();
-      applyTimeCursorState();
-      saveTimeCursor();
     });
   }
   /* 拖动手柄改指针时间 */
