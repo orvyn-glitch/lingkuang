@@ -6,6 +6,7 @@ import { mountTimeline } from './timeline';
 import { renderNodeDetail } from './detail';
 import { addTimeline } from '../store/actions';
 import { currentWorld } from '../store/store';
+import { renderNodeForm } from './node-form';
 
 export function renderShell(store: Store, host: HTMLElement): void {
   registerAllTools();
@@ -75,12 +76,21 @@ function renderTimelineTabs(store: Store): void {
     )
     .join('');
   head.innerHTML =
-    `<span class="lk-pane-title">世界沙盘 · 时间线</span><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new">＋</button></span>`;
+    `<span class="lk-pane-title">世界沙盘 · 时间线</span><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new" title="新建时间线">＋</button></span><button class="lk-tl-tab is-new" id="lk-node-new" title="新建节点">＋节点</button>`;
   head.querySelectorAll('.lk-tl-tab[data-tl]').forEach((el) => {
     el.addEventListener('click', () => store.setActiveTimeline((el as HTMLElement).dataset.tl!));
   });
   const newBtn = head.querySelector('#lk-tl-new');
   if (newBtn) newBtn.addEventListener('click', () => addTimeline(store, '新时间线'));
+  const nodeBtn = head.querySelector('#lk-node-new');
+  if (nodeBtn) {
+    nodeBtn.addEventListener('click', () => {
+      const tl = currentWorld(store).timelines[store.activeTimeline];
+      if (!tl) return;
+      const toolHost = document.getElementById('lk-tool-host');
+      if (toolHost) renderNodeForm(store, toolHost, store.activeTimeline, tl.name);
+    });
+  }
 }
 
 function renderToolbar(store: Store, host: HTMLElement): void {
