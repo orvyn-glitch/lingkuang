@@ -1981,6 +1981,32 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     addLinkedInput(people, n, 'people', '人物', el);
     addLinkedInput(places, n, 'places', '地点', el);
     foot.textContent = n.type === 'year' ? '年代锚点' : (n.type === 'plot' ? '剧情 / 人物节点' : '世界事件节点');
+    /* 关联文稿（编辑器联动）：下拉选 docs 文稿，保存 n.docId；打开按钮跳编辑器 */
+    var docSel = document.getElementById('d-doc-select');
+    var docOpen = document.getElementById('d-doc-open');
+    if (docSel) {
+      docSel.innerHTML = '<option value="">（无关联文稿）</option>';
+      Object.keys(docs).forEach(function (k) {
+        if (k === '__untitled__') return;
+        var o = document.createElement('option');
+        o.value = k;
+        o.textContent = k;
+        o.selected = n.docId === k;
+        docSel.appendChild(o);
+      });
+      docSel.onchange = function () {
+        n.docId = docSel.value || undefined;
+        saveTimelines();
+      };
+    }
+    if (docOpen) {
+      docOpen.onclick = function () {
+        if (!n.docId || typeof showView !== 'function' || typeof renderEditor !== 'function') return;
+        activeDoc = n.docId;
+        renderEditor();
+        showView('editor');
+      };
+    }
 
     /* delete this node (loop clones remove from their style template so
        every synchronized cycle loses it too) */

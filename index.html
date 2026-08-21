@@ -3095,6 +3095,14 @@ body.is-idle .veil__grain {
             <div class="tl__detail-sec-title">关联地点</div>
             <div class="tl__detail-chips" id="d-places"></div>
           </div>
+          <!-- 关联文稿（编辑器联动） -->
+          <div>
+            <div class="tl__detail-sec-title">关联文稿</div>
+            <div class="tl__detail-chips" id="d-doc" style="flex-direction:column;align-items:stretch;gap:4px;">
+              <select id="d-doc-select" style="padding:6px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;"></select>
+              <button class="btn btn--ghost" id="d-doc-open" style="width:100%;font-size:var(--text-xs);padding:6px;">在编辑器中打开</button>
+            </div>
+          </div>
           <!-- 角色档案（剧情/人物节点：初稿 + 演变） -->
           <div id="d-profile" style="display:none">
             <div class="tl__detail-sec-title">角色档案 · 初稿</div>
