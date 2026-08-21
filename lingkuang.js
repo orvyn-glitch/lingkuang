@@ -2100,7 +2100,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       if (!parsed.fields.length) {
         docFieldsEl.innerHTML = '<span class="pf-empty">（无字段 · 底部「编辑原文稿」用 #字段：值 添加）</span>';
       }
-      docBodyEl.textContent = parsed.body || '';
+      docBodyEl.innerHTML = parsed.body ? mdRender(parsed.body) : '';
       docBodyEl.style.display = parsed.body ? '' : 'none';
     }
     /* 字段卡片：小标题 + contenteditable 内容框（快捷编辑回写 doc） */
