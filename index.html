@@ -3016,6 +3016,7 @@ body.is-idle .veil__grain {
         <button class="tl__multi-toggle" id="tl-nonlinear" title="事件序列视图（节点等距排列）">序列</button>
         <button class="tl__multi-toggle" id="tl-multi" title="并列显示所有时间线">并列</button>
         <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情线 / 显示世界历史">剧情</button>
+        <button class="tl__multi-toggle" id="tl-entity-btn" title="实体：角色/地点/物品等设定对象（类型可自定义）">实体</button>
         <button class="tl__multi-toggle" id="tl-brush-btn" title="画线模式：拖拽框选节点累积成剧情线">画线</button>
         <select class="tl__story-select" id="tl-story-select" style="display:none"></select>
         <div class="tl__multi-mask" id="tl-multi-mask"></div>
@@ -3335,6 +3336,49 @@ body.is-idle .veil__grain {
     <div class="tl__modal-actions">
       <button class="btn btn--ghost" id="story-modal-cancel">关闭</button>
       <button class="btn btn--primary" id="story-modal-ok">创建剧情线</button>
+    </div>
+  </div>
+</div>
+
+<!-- 实体管理（独立实体系统：类型可自定义，实体=实例） -->
+<div class="tl__modal" id="entity-modal" style="display:none">
+  <div class="tl__modal-card" style="width:560px;">
+    <div class="tl__modal-title serif" id="entity-modal-title">实体</div>
+    <div class="tl__modal-body">
+      <div class="tl__modal-field" style="display:flex;gap:8px;align-items:center;">
+        <select id="entity-type-select" style="flex:1;padding:7px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;"></select>
+        <button class="btn btn--ghost" id="entity-type-add" style="padding:6px 10px;font-size:var(--text-xs);">＋类型</button>
+        <button class="btn btn--ghost" id="entity-type-edit" style="padding:6px 10px;font-size:var(--text-xs);">编辑类型</button>
+      </div>
+      <div class="tl__detail-sec-title">实体列表</div>
+      <div class="tl__detail-chips" id="entity-list" style="flex-direction:column;align-items:stretch;gap:4px;"></div>
+      <button class="btn btn--ghost" id="entity-add" style="width:100%;margin-top:6px;">＋ 新建实体</button>
+      <div id="entity-form" style="display:none;margin-top:10px;"></div>
+      <p class="tl__loop-hint" id="entity-error" style="display:none;color:var(--danger);"></p>
+    </div>
+    <div class="tl__modal-actions">
+      <button class="btn btn--ghost" id="entity-modal-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 实体类型编辑（自定义数据结构：字段增删，text/longtext） -->
+<div class="tl__modal" id="entity-type-modal" style="display:none">
+  <div class="tl__modal-card" style="width:440px;">
+    <div class="tl__modal-title serif">编辑类型</div>
+    <div class="tl__modal-body">
+      <div class="tl__modal-field">
+        <label>类型名</label>
+        <input type="text" id="entity-type-name" />
+      </div>
+      <div class="tl__detail-sec-title">字段</div>
+      <div id="entity-type-fields"></div>
+      <button class="btn btn--ghost" id="entity-type-field-add" style="width:100%;margin-top:6px;">＋ 添加字段</button>
+      <p class="tl__loop-hint">字段决定实体的数据结构（类型=模板，实体=实例）</p>
+    </div>
+    <div class="tl__modal-actions">
+      <button class="btn btn--ghost" id="entity-type-cancel">取消</button>
+      <button class="btn btn--primary" id="entity-type-ok">保存类型</button>
     </div>
   </div>
 </div>

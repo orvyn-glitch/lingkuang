@@ -9,6 +9,211 @@
   }
   tick(); setInterval(tick, 1000);
 
+  /* ── 实体系统（独立实体，类型可自定义：类型=模板，实体=实例）── */
+  function entityTypesOf(ws) {
+    if (!ws.entityTypes || typeof ws.entityTypes !== 'object') ws.entityTypes = {};
+    return ws.entityTypes;
+  }
+  function entitiesOf(ws) {
+    if (!ws.entities || typeof ws.entities !== 'object') ws.entities = {};
+    return ws.entities;
+  }
+  /* 默认内置"角色"类型（用户可改/加） */
+  function ensureEntityDefaults() {
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    if (!types.role) {
+      types.role = { id: 'role', name: '角色', fields: [
+        { key: '性格', type: 'text' }, { key: '能力', type: 'text' }, { key: '身世', type: 'longtext' }
+      ] };
+    }
+  }
+  var entityModal = document.getElementById('entity-modal');
+  var entityTypeSelect = document.getElementById('entity-type-select');
+  var entityList = document.getElementById('entity-list');
+  var entityForm = document.getElementById('entity-form');
+  var entityError = document.getElementById('entity-error');
+  var entityTypeModal = document.getElementById('entity-type-modal');
+  var entityTypeName = document.getElementById('entity-type-name');
+  var entityTypeFields = document.getElementById('entity-type-fields');
+  var editingEntity = null;      /* 正在编辑的实体 id */
+  var editingTypeId = null;      /* 正在编辑的类型 id */
+  function openEntityModal() {
+    ensureEntityDefaults();
+    renderEntityTypeSelect();
+    renderEntityList();
+    entityModal.style.display = 'flex';
+  }
+  function closeEntityModal() { entityModal.style.display = 'none'; }
+  function renderEntityTypeSelect() {
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    entityTypeSelect.innerHTML = '';
+    Object.keys(types).forEach(function (tid) {
+      var o = document.createElement('option');
+      o.value = tid;
+      o.textContent = types[tid].name || tid;
+      entityTypeSelect.appendChild(o);
+    });
+    if (entityTypeSelect.options.length) entityTypeSelect.selectedIndex = 0;
+  }
+  function renderEntityList() {
+    var ws = worldsets[activeWorldset];
+    var entities = entitiesOf(ws);
+    var tid = entityTypeSelect.value;
+    entityList.innerHTML = '';
+    Object.keys(entities).forEach(function (eid) {
+      var e = entities[eid];
+      if (e.type !== tid) return;
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg);cursor:pointer;';
+      var nm = document.createElement('span');
+      nm.style.flex = '1';
+      nm.textContent = e.name || '(未命名)';
+      var del = document.createElement('button');
+      del.className = 'tl__eyedrop';
+      del.textContent = '×';
+      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
+      del.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        delete entities[eid];
+        saveTimelines();
+        renderEntityList();
+      });
+      row.appendChild(nm);
+      row.appendChild(del);
+      row.addEventListener('click', function () { openEntityForm(e); });
+      entityList.appendChild(row);
+    });
+  }
+  /* 实体表单：按类型字段渲染（text / longtext） */
+  function openEntityForm(e) {
+    editingEntity = e.id;
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    var t = types[e.type] || { fields: [] };
+    entityForm.style.display = '';
+    var html = '<div class="tl__modal-field"><label>名字</label><input id="ent-name" value="' + escapeHtml(e.name || '') + '" /></div>';
+    (t.fields || []).forEach(function (f) {
+      var v = (e.data && e.data[f.key]) || '';
+      html += '<div class="tl__modal-field"><label>' + escapeHtml(f.key) + '</label>';
+      if (f.type === 'longtext') {
+        html += '<textarea id="ent-f-' + escapeHtml(f.key) + '" spellcheck="false" style="width:100%;min-height:60px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(v) + '</textarea>';
+      } else {
+        html += '<input type="text" id="ent-f-' + escapeHtml(f.key) + '" value="' + escapeHtml(v) + '" />';
+      }
+      html += '</div>';
+    });
+    html += '<div class="tl__modal-field"><label>描述</label><textarea id="ent-desc" spellcheck="false" style="width:100%;min-height:48px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(e.desc || '') + '</textarea></div>';
+    html += '<button class="btn btn--primary" id="ent-save" style="width:100%;">保存实体</button>';
+    entityForm.innerHTML = html;
+    var saveBtn = document.getElementById('ent-save');
+    saveBtn.addEventListener('click', function () {
+      e.name = document.getElementById('ent-name').value.trim() || e.name;
+      if (!e.data) e.data = {};
+      (t.fields || []).forEach(function (f) {
+        var inp = document.getElementById('ent-f-' + f.key);
+        if (inp) e.data[f.key] = inp.value;
+      });
+      e.desc = document.getElementById('ent-desc').value;
+      saveTimelines();
+      renderEntityList();
+      entityError.style.display = 'none';
+    });
+  }
+  /* 类型编辑 modal */
+  function openTypeEditor(tid) {
+    editingTypeId = tid;
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    var t = types[tid];
+    if (!t) return;
+    entityTypeName.value = t.name || tid;
+    renderTypeFields(t);
+    entityTypeModal.style.display = 'flex';
+  }
+  function renderTypeFields(t) {
+    entityTypeFields.innerHTML = '';
+    (t.fields || []).forEach(function (f, i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px;';
+      var kIn = document.createElement('input');
+      kIn.value = f.key;
+      kIn.style.cssText = 'flex:1;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
+      var tSel = document.createElement('select');
+      tSel.style.cssText = 'padding:5px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
+      ['text', 'longtext'].forEach(function (tt) {
+        var o = document.createElement('option');
+        o.value = tt;
+        o.textContent = tt === 'text' ? '单行' : '多行';
+        o.selected = f.type === tt;
+        tSel.appendChild(o);
+      });
+      var del = document.createElement('button');
+      del.className = 'tl__eyedrop';
+      del.textContent = '×';
+      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
+      del.addEventListener('click', function () { t.fields.splice(i, 1); renderTypeFields(t); });
+      kIn.addEventListener('change', function () { f.key = kIn.value.trim(); });
+      tSel.addEventListener('change', function () { f.type = tSel.value; });
+      row.appendChild(kIn); row.appendChild(tSel); row.appendChild(del);
+      entityTypeFields.appendChild(row);
+    });
+  }
+  var entityBtn = document.getElementById('tl-entity-btn');
+  if (entityBtn) entityBtn.addEventListener('click', openEntityModal);
+  document.getElementById('entity-modal-close').addEventListener('click', closeEntityModal);
+  document.getElementById('entity-type-select').addEventListener('change', renderEntityList);
+  document.getElementById('entity-type-add').addEventListener('click', function () {
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    var name = prompt('类型名（如 角色/地点/物品）：');
+    if (!name) return;
+    var tid = 't' + Date.now();
+    types[tid] = { id: tid, name: name.trim(), fields: [] };
+    renderEntityTypeSelect();
+    entityTypeSelect.value = tid;
+    openTypeEditor(tid);
+  });
+  document.getElementById('entity-type-edit').addEventListener('click', function () {
+    openTypeEditor(entityTypeSelect.value);
+  });
+  document.getElementById('entity-type-field-add').addEventListener('click', function () {
+    var ws = worldsets[activeWorldset];
+    var t = entityTypesOf(ws)[editingTypeId];
+    if (!t) return;
+    if (!Array.isArray(t.fields)) t.fields = [];
+    t.fields.push({ key: '', type: 'text' });
+    renderTypeFields(t);
+  });
+  document.getElementById('entity-type-cancel').addEventListener('click', function () { entityTypeModal.style.display = 'none'; });
+  document.getElementById('entity-type-ok').addEventListener('click', function () {
+    var ws = worldsets[activeWorldset];
+    var types = entityTypesOf(ws);
+    var t = types[editingTypeId];
+    if (!t) return;
+    t.name = entityTypeName.value.trim() || t.name;
+    t.fields = (t.fields || []).filter(function (f) { return f.key && f.key.trim(); });
+    saveTimelines();
+    entityTypeModal.style.display = 'none';
+    renderEntityTypeSelect();
+    entityTypeSelect.value = editingTypeId;
+    renderEntityList();
+  });
+  document.getElementById('entity-add').addEventListener('click', function () {
+    var ws = worldsets[activeWorldset];
+    var entities = entitiesOf(ws);
+    var tid = entityTypeSelect.value;
+    if (!tid) { entityError.textContent = '先创建类型'; entityError.style.display = ''; return; }
+    var eid = 'e' + Date.now();
+    var e = { id: eid, type: tid, name: '', data: {}, desc: '' };
+    entities[eid] = e;
+    renderEntityList();
+    openEntityForm(e);
+    var nm = document.getElementById('ent-name');
+    if (nm) nm.focus();
+  });
+
   /* ── view switching ────────────────────────────────────── */
   var views = {
     lobby: document.getElementById('view-lobby'),
