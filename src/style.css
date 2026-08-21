@@ -33,7 +33,7 @@ body {
 
 .lk-app { display: flex; flex-direction: column; height: 100%; }
 
-/* 世界栏（顶部世界 tab + 工具栏） */
+/* 世界栏（工具栏右侧顶部条）：世界 tab 横向 */
 .lk-worldbar {
   display: flex;
   align-items: stretch;
@@ -76,8 +76,9 @@ body {
 .lk-tool-btn.is-ph { opacity: 0.4; }
 .lk-tool-btn.is-ph:hover { opacity: 0.7; }
 
-/* 主区：左工具栏 + 沙盘（时间线在上/地图在下）+ 右工具宿主 */
+/* 主区：左工具栏（全高） + 右列（世界栏在上/沙盘在下） + 工具宿主 */
 .lk-main { flex: 1; display: flex; min-height: 0; }
+.lk-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .lk-sandbox { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .lk-toolbar {
   display: flex;

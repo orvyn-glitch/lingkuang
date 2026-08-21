@@ -12,21 +12,23 @@ export function renderShell(store: Store, host: HTMLElement): void {
 
   host.innerHTML = `
     <div class="lk-app">
-      <header class="lk-worldbar">
-        <div class="lk-worldbar-tabs" id="lk-world-tabs"></div>
-      </header>
       <main class="lk-main">
         <nav class="lk-toolbar" id="lk-toolbar"></nav>
-        <section class="lk-sandbox" id="lk-sandbox">
-          <div class="lk-pane lk-pane-timeline" id="lk-pane-timeline">
-            <div class="lk-pane-head">世界沙盘 · 时间线 <span class="lk-ph">（功能迁移中）</span></div>
-            <div class="lk-pane-body lk-placeholder">时间线视图</div>
-          </div>
-          <div class="lk-pane lk-pane-map" id="lk-pane-map">
-            <div class="lk-pane-head">地图 <span class="lk-ph">（占位）</span></div>
-            <div class="lk-pane-body lk-placeholder">地图视图 · Leaflet 重构</div>
-          </div>
-        </section>
+        <div class="lk-right">
+          <header class="lk-worldbar">
+            <div class="lk-worldbar-tabs" id="lk-world-tabs"></div>
+          </header>
+          <section class="lk-sandbox" id="lk-sandbox">
+            <div class="lk-pane lk-pane-timeline" id="lk-pane-timeline">
+              <div class="lk-pane-head">世界沙盘 · 时间线 <span class="lk-ph">（功能迁移中）</span></div>
+              <div class="lk-pane-body lk-placeholder">时间线视图</div>
+            </div>
+            <div class="lk-pane lk-pane-map" id="lk-pane-map">
+              <div class="lk-pane-head">地图 <span class="lk-ph">（占位）</span></div>
+              <div class="lk-pane-body lk-placeholder">地图视图 · Leaflet 重构</div>
+            </div>
+          </section>
+        </div>
         <aside class="lk-tool-host" id="lk-tool-host"></aside>
       </main>
     </div>`;
