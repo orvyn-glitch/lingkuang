@@ -17,6 +17,7 @@ export function mountTimeline(
   host: HTMLElement,
   onSelect?: (node: TimelineNode) => void
 ): void {
+  host.classList?.remove('lk-placeholder');   /* 挂载后移除占位样式 */
   host.innerHTML = `
     <div class="tl-wrap" style="position:relative;width:100%;height:100%;overflow:hidden;cursor:default;">
       <div class="tl-scale" style="position:absolute;top:0;left:0;right:0;height:26px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);overflow:hidden;"></div>

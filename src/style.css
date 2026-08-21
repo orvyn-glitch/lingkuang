@@ -159,10 +159,6 @@ body {
   justify-content: center;
   color: var(--fg-2);
   font-size: var(--text-sm);
-  background:
-    linear-gradient(rgba(58, 58, 52, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(58, 58, 52, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 .lk-tool-host {
   width: 300px;
