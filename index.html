@@ -994,6 +994,30 @@ body.is-idle .veil__grain {
   border-radius: var(--radius-sm);
   box-shadow: inset 0 0 0 1px rgba(158, 194, 98, 0.08);
 }
+/* 画线模式：已选入剧情线的节点高亮 */
+.tl__n.is-inline {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(158, 194, 98, 0.45) !important;
+}
+.tl__n.is-inline::before { background: var(--accent) !important; }
+/* 画线模式浮条（底部居中） */
+.tl__line-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(30, 30, 25, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.tl__line-bar .tl__line-count { font-weight: 600; color: var(--accent); }
+.tl__line-bar .tl__line-hint { font-size: var(--text-xs); color: var(--meta); }
 .tl__multi-toggle.is-on { background: var(--accent); color: var(--accent-on); }
 /* 剧情范围面板的吸取按钮：大按钮全宽，好点 */
 .story-pick-btn {
@@ -2901,8 +2925,8 @@ body.is-idle .veil__grain {
       <div class="tl__manager" id="tl-manager">
         <button class="tl__multi-toggle" id="tl-nonlinear" title="事件序列视图（节点等距排列）">序列</button>
         <button class="tl__multi-toggle" id="tl-multi" title="并列显示所有时间线">并列</button>
-        <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情范围 / 显示世界历史">剧情</button>
-        <button class="tl__multi-toggle" id="tl-brush-btn" title="刷子：拖拽框选时间区间创建剧情范围">刷子</button>
+        <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情线 / 显示世界历史">剧情</button>
+        <button class="tl__multi-toggle" id="tl-brush-btn" title="画线模式：拖拽框选节点累积成剧情线">画线</button>
         <select class="tl__story-select" id="tl-story-select" style="display:none"></select>
         <div class="tl__multi-mask" id="tl-multi-mask"></div>
         <div id="tl-tabs" class="tl__tabs is-ready" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap"></div>
@@ -2911,6 +2935,12 @@ body.is-idle .veil__grain {
 
       <!-- horizontal stage -->
       <div class="tl__stage" id="tl-stage">
+        <div class="tl__line-bar" id="tl-line-bar" style="display:none">
+          <span class="tl__line-count" id="tl-line-count">已选 0 个节点</span>
+          <span class="tl__line-hint">继续拖拽刷选补充 · Enter 完成 · Esc 取消</span>
+          <button class="btn btn--ghost" id="tl-line-cancel" style="padding:6px 12px;font-size:var(--text-xs);">取消</button>
+          <button class="btn btn--primary" id="tl-line-done" style="padding:6px 14px;font-size:var(--text-xs);">完成</button>
+        </div>
         <div class="tl__track" id="tl-track">
           <div id="tl-nodes"></div>
           <div class="tl__empty" id="tl-empty" style="display:none">
@@ -3190,32 +3220,22 @@ body.is-idle .veil__grain {
   </div>
 </div>
 
-<!-- story-range dialog：创建剧情范围（AE 工作区式，吸取起终节点） -->
+<!-- story-line dialog：创建剧情线（刷选累积节点 → 命名） -->
 <div class="tl__modal" id="story-modal" style="display:none">
   <div class="tl__modal-card">
-    <div class="tl__modal-title serif" id="story-modal-title">剧情范围</div>
+    <div class="tl__modal-title serif" id="story-modal-title">剧情线</div>
     <div class="tl__modal-body">
       <div class="tl__modal-field">
-        <label>范围名</label>
-        <input type="text" id="story-modal-name" placeholder="如 第一章" />
+        <label>剧情线名</label>
+        <input type="text" id="story-modal-name" placeholder="如 主角线 / 女主线" />
       </div>
-      <div class="tl__detail-sec-title">起始节点</div>
-      <div class="tl__picked-node" id="story-start-picked" style="display:none">
-        <span id="story-start-picked-name"></span>
-        <button class="tl__eyedrop" id="story-start-unpick" title="取消吸取">×</button>
-      </div>
-      <button class="btn btn--ghost story-pick-btn" id="story-pick-start">◉ 吸取起始节点</button>
-      <div class="tl__detail-sec-title">结束节点</div>
-      <div class="tl__picked-node" id="story-end-picked" style="display:none">
-        <span id="story-end-picked-name"></span>
-        <button class="tl__eyedrop" id="story-end-unpick" title="取消吸取">×</button>
-      </div>
-      <button class="btn btn--ghost story-pick-btn" id="story-pick-end">◉ 吸取结束节点</button>
+      <div class="tl__detail-sec-title">已选节点</div>
+      <div class="tl__detail-chips" id="story-line-count">0 个节点</div>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">
       <button class="btn btn--ghost" id="story-modal-cancel">关闭</button>
-      <button class="btn btn--primary" id="story-modal-ok">创建范围</button>
+      <button class="btn btn--primary" id="story-modal-ok">创建剧情线</button>
     </div>
   </div>
 </div>
