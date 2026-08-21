@@ -2910,10 +2910,8 @@ body.is-idle .veil__grain {
       <!-- horizontal stage -->
       <div class="tl__stage" id="tl-stage">
         <div class="tl__line-bar" id="tl-line-bar" style="display:none">
-          <span class="tl__line-count" id="tl-line-count">已选 0 个节点</span>
-          <span class="tl__line-hint">继续拖拽刷选补充 · Enter 完成 · Esc 取消</span>
+          <span class="tl__line-hint">画线模式：拖拽框选起止年份（靠近节点自动吸附）· Esc 取消</span>
           <button class="btn btn--ghost" id="tl-line-cancel" style="padding:6px 12px;font-size:var(--text-xs);">取消</button>
-          <button class="btn btn--primary" id="tl-line-done" style="padding:6px 14px;font-size:var(--text-xs);">完成</button>
         </div>
         <div class="tl__track" id="tl-track">
           <div id="tl-nodes"></div>
@@ -3203,8 +3201,17 @@ body.is-idle .veil__grain {
         <label>剧情线名</label>
         <input type="text" id="story-modal-name" placeholder="如 主角线 / 女主线" />
       </div>
-      <div class="tl__detail-sec-title">已选节点</div>
-      <div class="tl__detail-chips" id="story-line-count">0 个节点</div>
+      <div class="tl__modal-field" style="display:flex; gap:12px;">
+        <div style="flex:1">
+          <label>起始年份</label>
+          <input type="number" id="story-modal-start" />
+        </div>
+        <div style="flex:1">
+          <label>结束年份</label>
+          <input type="number" id="story-modal-end" />
+        </div>
+      </div>
+      <p class="tl__loop-hint">起止年份自由填写，不绑定节点；画线刷选时靠近节点会自动吸附对齐</p>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">

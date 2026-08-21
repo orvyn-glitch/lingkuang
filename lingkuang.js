@@ -185,27 +185,45 @@
     });
   }
   migrateLoops();   /* seed 数据也迁移一次 */
-  /* 剧情线迁移：旧章节式 storyRanges（起终节点区间）→ 剧情线（nodeIds 节点集合，可跨时间/多对多）。
+  /* 剧情线迁移：兼容旧数据——旧 nodeIds 集合 → 年份区间（取 min/max）；
+     旧章节式 storyRanges（startNodeId/endNodeId）→ 年份区间。
      timelines 是对象映射 {id: tl}，须用 Object.keys 遍历。 */
   function migrateStorylines() {
     Object.keys(timelines).forEach(function (tlId) {
       var tl = timelines[tlId];
       if (!tl || typeof tl !== 'object') return;
-      if (!Array.isArray(tl.storylines) && Array.isArray(tl.storyRanges)) {
-        tl.storylines = tl.storyRanges.map(function (sr, i) {
-          var ids = [];
-          if (sr.startNodeId && sr.endNodeId && Array.isArray(tl.nodes)) {
-            var s = findNodeById(tl, sr.startNodeId), e = findNodeById(tl, sr.endNodeId);
-            if (s && e) {
-              var lo = Math.min(absYearOf(s, tl), absYearOf(e, tl));
-              var hi = Math.max(absYearOf(s, tl), absYearOf(e, tl));
-              tl.nodes.forEach(function (n) {
-                var y = absYearOf(n, tl);
-                if (y >= lo && y <= hi) ids.push(n.id);
-              });
+      var migrateOne = function (sr, i) {
+        var lo = Infinity, hi = -Infinity;
+        /* 旧 nodeIds 集合：取节点年份 min/max */
+        if (Array.isArray(sr.nodeIds)) {
+          sr.nodeIds.forEach(function (nid) {
+            var n = findNodeById(tl, nid);
+            if (n) {
+              var y = absYearOf(n, tl);
+              if (y < lo) lo = y;
+              if (y > hi) hi = y;
             }
+          });
+        }
+        /* 旧章节式起终节点 */
+        if (!isFinite(lo) && sr.startNodeId && sr.endNodeId) {
+          var s = findNodeById(tl, sr.startNodeId), e = findNodeById(tl, sr.endNodeId);
+          if (s && e) {
+            var sy = absYearOf(s, tl), ey = absYearOf(e, tl);
+            lo = Math.min(sy, ey); hi = Math.max(sy, ey);
           }
-          return { id: 'sl_' + Date.now() + '_' + i, name: sr.name || ('剧情线 ' + (i + 1)), nodeIds: ids };
+        }
+        if (!isFinite(lo)) { lo = sr.startYear !== undefined ? sr.startYear : 0; hi = sr.endYear !== undefined ? sr.endYear : lo; }
+        return { id: sr.id || ('sl_' + Date.now() + '_' + i), name: sr.name || ('剧情线 ' + (i + 1)), startYear: lo, endYear: hi };
+      };
+      if (Array.isArray(tl.storyRanges) && !Array.isArray(tl.storylines)) {
+        tl.storylines = tl.storyRanges.map(migrateOne);
+      }
+      if (Array.isArray(tl.storylines)) {
+        /* 已有 storylines 但仍是 nodeIds 旧结构 → 转年份区间 */
+        tl.storylines = tl.storylines.map(function (sr, i) {
+          if (isFinite(sr.startYear)) return sr;
+          return migrateOne(sr, i);
         });
       }
       if (!Array.isArray(tl.storylines)) tl.storylines = [];
@@ -527,7 +545,7 @@
 var nonlinearMode = false;   /* event-sequence view: nodes at FIXED pitch */
 var seqPitch = 96;           /* px between consecutive events (nonlinear) */
 
-  /* ── 剧情线（主角线/女主线等平行叙事线）：节点集合，可跨时间、多对多 ── */
+  /* ── 剧情线（主角线/女主线等平行叙事线）：时间范围（自由起止年份），不绑节点 ── */
   var storyMode = 'focus';        /* 'focus' 只看剧情 / 'full' 显示世界历史 */
   var activeStoryRangeId = null;  /* 当前聚焦的剧情线 id */
   function storyRangesOf(tl) { return (tl && Array.isArray(tl.storylines)) ? tl.storylines : []; }
@@ -536,24 +554,19 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     for (var i = 0; i < rs.length; i++) if (rs[i].id === id) return rs[i];
     return null;
   }
-  /* 剧情线节点集合的年份范围 [lo, hi]（标尺/范围条用）；无节点返回 null */
+  /* 剧情线时间范围 [lo, hi]（标尺/范围条用） */
   function storyRangeSpan(tl, sr) {
-    if (!sr || !Array.isArray(sr.nodeIds) || !sr.nodeIds.length) return null;
-    var lo = Infinity, hi = -Infinity;
-    sr.nodeIds.forEach(function (nid) {
-      var n = findNodeById(tl, nid);
-      if (n) {
-        var y = absYearOf(n, tl);
-        if (y < lo) lo = y;
-        if (y > hi) hi = y;
-      }
-    });
-    return isFinite(lo) ? { lo: lo, hi: hi } : null;
+    if (!sr || !isFinite(sr.startYear) || !isFinite(sr.endYear)) return null;
+    return sr.startYear <= sr.endYear
+      ? { lo: sr.startYear, hi: sr.endYear }
+      : { lo: sr.endYear, hi: sr.startYear };
   }
-  /* 节点是否属于该剧情线（集合包含，多对多） */
+  /* 节点是否在该剧情线时间范围内（自动按年份归属，非显式绑定） */
   function nodeInRange(tl, sr, n) {
-    if (!sr || !Array.isArray(sr.nodeIds)) return true;   /* 线损坏 → 不裁剪（保守） */
-    return sr.nodeIds.indexOf(n.id) !== -1;
+    var sp = storyRangeSpan(tl, sr);
+    if (!sp) return true;   /* 线损坏 → 不裁剪（保守） */
+    var y = absYearOf(n, tl);
+    return y >= sp.lo && y <= sp.hi;
   }
   /* 当前聚焦的范围（无则 null） */
   function activeStoryRange() {
@@ -820,40 +833,34 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     updatePositions(); applyModeView(); applyPan();
   });
 
-  function openStoryRangeModal() {
+  function openStoryRangeModal(presetStart, presetEnd) {
     var tl = timelines[activeId];
     if (!tl) return;
     document.getElementById('story-modal-title').textContent = '剧情线 · ' + tl.name;
     document.getElementById('story-modal-name').value = '';
-    document.getElementById('story-line-count').textContent = pendingLineIds.length + ' 个节点';
+    var si = document.getElementById('story-modal-start');
+    var ei = document.getElementById('story-modal-end');
+    if (presetStart !== undefined && presetStart !== null) si.value = presetStart;
+    else si.value = '';
+    if (presetEnd !== undefined && presetEnd !== null) ei.value = presetEnd;
+    else ei.value = '';
     storyModal.style.display = 'flex';
     document.getElementById('story-modal-name').focus();
   }
 
-  /* ── 画线模式：刷选累积节点 → 命名 → 创建剧情线（主角线/女主线等）── */
+  /* ── 画线模式：刷选起止年份 → 命名 → 创建剧情线（自由范围，靠近节点吸附）── */
   var lineMode = false;            /* 画线模式开关 */
-  var pendingLineIds = [];         /* 本次累积选中的节点 id（去重） */
   var brushDrag = null;            /* { startVx, startT, curT } or null */
   var brushSel = null;             /* 选区高亮 div（stage 内，视口坐标） */
   var lineBar = document.getElementById('tl-line-bar');
-  var lineCount = document.getElementById('tl-line-count');
   var brushBtn = document.getElementById('tl-brush-btn');
   function lineBarShow() { if (lineBar) lineBar.style.display = 'flex'; }
   function lineBarHide() { if (lineBar) lineBar.style.display = 'none'; }
-  function updateLineCount() {
-    if (lineCount) lineCount.textContent = '已选 ' + pendingLineIds.length + ' 个节点';
-  }
-  function clearPendingLine() {
-    pendingLineIds = [];
-    nodesEl.querySelectorAll('.tl__n.is-inline').forEach(function (el) { el.classList.remove('is-inline'); });
-    updateLineCount();
-  }
   function exitLineMode() {
     lineMode = false;
     brushMode = false;
     brushDrag = null;
     clearBrushSel();
-    clearPendingLine();
     lineBarHide();
     if (brushBtn) brushBtn.classList.remove('is-on');
   }
@@ -862,13 +869,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       lineMode = !lineMode;
       brushMode = lineMode;   /* 画线模式内拖拽 = 刷选 */
       brushBtn.classList.toggle('is-on', lineMode);
-      if (lineMode) {
-        clearPendingLine();
-        lineBarShow();
-        brushDrag = null;
-      } else {
-        exitLineMode();
-      }
+      if (lineMode) lineBarShow();
+      else exitLineMode();
     });
   }
   function clearBrushSel() {
@@ -877,49 +879,51 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   }
   /* 视口 x → 年份（节点显示 x = timeToX(t) + panX，反推 t） */
   function brushYearFromVx(vx) { return xToTime(vx - panX); }
-  /* 刷选结束：框内节点累积进 pendingLineIds（去重 + 高亮），不直接创建 */
+  /* 吸附：年份靠近节点（视口 ~10px 内）→ 对齐节点年份（可选辅助，不强制绑定） */
+  function snapToNodeYear(tl, y) {
+    if (!tl || !Array.isArray(tl.nodes) || !tl.nodes.length) return y;
+    var snapDist = Math.max(1, 10 / NODE_SPACING);   /* 视口 10px 对应的年数：fit 视图 ~20 年，放大视图更精确 */
+    var best = null, bestD = Infinity;
+    tl.nodes.forEach(function (n) {
+      var ny = absYearOf(n, tl);
+      var d = Math.abs(ny - y);
+      if (d < bestD) { bestD = d; best = ny; }
+    });
+    return (best !== null && bestD <= snapDist) ? best : y;
+  }
+  /* 刷选结束：起止年份（吸附）→ 弹命名面板（可手动改起止） */
   function finishBrush() {
     if (!brushDrag) return;
     var t0 = brushDrag.startT, t1 = brushDrag.curT;
-    var loT = Math.min(t0, t1), hiT = Math.max(t0, t1);
     var tl = timelines[activeId];
     clearBrushSel();
     brushDrag = null;
-    if (!lineMode || !tl || !Array.isArray(tl.nodes)) return;
-    var added = 0;
-    tl.nodes.forEach(function (n) {
-      var y = absYearOf(n, tl);
-      if (y >= loT && y <= hiT && pendingLineIds.indexOf(n.id) === -1) {
-        pendingLineIds.push(n.id);
-        added++;
-        /* 高亮已渲染的节点元素 */
-        nodesEl.querySelectorAll('.tl__n').forEach(function (el) {
-          if (el._node && el._node.id === n.id) el.classList.add('is-inline');
-        });
-      }
-    });
-    if (added > 0) updateLineCount();
+    if (!lineMode || !tl) return;
+    var loT = Math.min(t0, t1), hiT = Math.max(t0, t1);
+    loT = snapToNodeYear(tl, loT);
+    hiT = snapToNodeYear(tl, hiT);
+    openStoryRangeModal(Math.round(loT), Math.round(hiT));
   }
-  /* 完成：弹命名面板（pendingLineIds 已在 modal 显示） */
-  function finishLine() {
-    if (!pendingLineIds.length) { exitLineMode(); return; }
-    openStoryRangeModal();
-  }
-  var lineDoneBtn = document.getElementById('tl-line-done');
-  var lineCancelBtn = document.getElementById('tl-line-cancel');
-  if (lineDoneBtn) lineDoneBtn.addEventListener('click', finishLine);
-  if (lineCancelBtn) lineCancelBtn.addEventListener('click', exitLineMode);
+  /* Enter 完成画线 / Esc 取消 */
+  document.addEventListener('keydown', function (e) {
+    if (!lineMode) return;
+    if (e.key === 'Escape') { e.preventDefault(); exitLineMode(); }
+  });
   function confirmStoryRange() {
     var tl = timelines[activeId];
     var errEl = document.getElementById('story-modal-error');
-    if (!pendingLineIds.length) {
-      errEl.textContent = '请先刷选至少一个节点';
+    var si = document.getElementById('story-modal-start');
+    var ei = document.getElementById('story-modal-end');
+    var startY = parseFloat(si.value);
+    var endY = parseFloat(ei.value);
+    if (!isFinite(startY) || !isFinite(endY)) {
+      errEl.textContent = '请填写起始和结束年份（可刷选自动填入）';
       errEl.style.display = '';
       return;
     }
     var name = document.getElementById('story-modal-name').value.trim() || ('剧情线 ' + (storyRangesOf(tl).length + 1));
     if (!Array.isArray(tl.storylines)) tl.storylines = [];
-    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, nodeIds: pendingLineIds.slice() });
+    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, startYear: startY, endYear: endY });
     saveTimelines();
     storyModal.style.display = 'none';
     exitLineMode();
@@ -935,12 +939,6 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     exitLineMode();
   });
   document.getElementById('story-modal-ok').addEventListener('click', confirmStoryRange);
-  /* Enter 完成画线 / Esc 取消 */
-  document.addEventListener('keydown', function (e) {
-    if (!lineMode) return;
-    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); finishLine(); }
-    else if (e.key === 'Escape') { e.preventDefault(); exitLineMode(); }
-  });
 
   /* 循环重复段（count > 1）的"幽灵节点"：半透明虚线提示这些节点在上一次轮回也发生了 */  /* 渲染循环重复段（count>1）的节点：与第一段内容完全同步的实节点。
      用 is-loop-repeat 标记 + _ghostOffset 记录偏移年数，缩放/编辑时据此重定位 */
