@@ -38,17 +38,16 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
 
   host.style.overflow = 'auto';
   host.innerHTML = `
-    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:center;gap:8px;">
+    <div style="display:flex;flex-direction:column;height:100%;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);flex-wrap:wrap;">
         <span style="font-size:15px;font-weight:600;color:var(--fg);">灵感触发器</span>
         <span id="insp-status" style="font-size:var(--text-xs);color:var(--fg-2);">加载词库…</span>
+        <span style="flex:1;"></span>
+        <div id="insp-saves" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        <button id="insp-save" style="background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 12px;font-size:var(--text-sm);cursor:pointer;">保存组合</button>
+        <button id="insp-roll" style="background:var(--accent);color:var(--accent-on);border:none;border-radius:var(--radius-sm);padding:6px 14px;font-size:var(--text-sm);cursor:pointer;">重新生成</button>
       </div>
-      <div id="insp-result" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:flex;gap:8px;position:sticky;bottom:0;background:var(--surface);padding:6px 0;">
-        <button id="insp-roll" style="flex:1;background:var(--accent);color:var(--accent-on);border:none;border-radius:var(--radius-sm);padding:8px;font-size:var(--text-sm);cursor:pointer;">重新生成</button>
-        <button id="insp-save" style="flex:1;background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:var(--text-sm);cursor:pointer;">保存组合</button>
-      </div>
-      <div id="insp-saves" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      <div id="insp-result" style="flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-content:start;"></div>
     </div>`;
 
   const status = host.querySelector('#insp-status') as HTMLElement;
