@@ -204,18 +204,22 @@ export function mountTimeline(
   window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceDown = false; });
   window.addEventListener('blur', () => { spaceDown = false; });
 
-  /* Ctrl+滚轮缩放（以鼠标为中心，照抄 legacy）；双击空白 fit */
+  /* 滚轮：普通=左右平移（横向滚动），Ctrl=缩放（照抄 legacy scrollPan） */
   wrap.addEventListener(
     'wheel',
     (e) => {
-      if (!e.ctrlKey) return;
       e.preventDefault();
-      const rect = wrap.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const tAt = xToTime(mx);
-      const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
-      view.spacing = Math.min(40, Math.max(0.05, view.spacing * factor));
-      view.panX = mx - 40 - tAt * view.spacing;
+      if (e.ctrlKey) {
+        const rect = wrap.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const tAt = xToTime(mx);
+        const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+        view.spacing = Math.min(40, Math.max(0.05, view.spacing * factor));
+        view.panX = mx - 40 - tAt * view.spacing;
+      } else {
+        view.panX -= e.deltaY;   /* 滚轮上下 → 时间线左右平移 */
+        if (e.deltaX) view.panX -= e.deltaX;
+      }
       render();
     },
     { passive: false }
