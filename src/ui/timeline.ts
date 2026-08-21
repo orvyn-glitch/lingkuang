@@ -705,9 +705,10 @@ export function mountTimeline(
       : [
           ['新建节点', () => {
             const tl = timeline();
-            if (!tl) return;
+            const tid = activeTimelineId();
+            if (!tl || !tid) return;
             const toolHost = document.getElementById('lk-tool-host');
-            if (toolHost) renderNodeForm(store, toolHost, activeTimelineId(), tl.name);
+            if (toolHost) renderNodeForm(store, toolHost, tid, tl.name);
           }],
           ['剧情线笔刷', () => { brushing = !brushing; renderStoryUI(); }],
           ['新建循环', () => { renderExtraTools(); document.getElementById('lk-loop-new')?.dispatchEvent(new MouseEvent('click')); }],
