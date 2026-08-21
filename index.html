@@ -951,14 +951,22 @@ body.is-idle .veil__grain {
   top: 0;
   height: 16px;
   border-radius: var(--radius-sm);
-  background: rgba(158,194,98,0.14);
-  border: 1px solid rgba(158,194,98,0.45);
+  background: transparent;          /* 容器透明，色块由 seg 渲染（多段 gap 断开） */
   pointer-events: none;
   z-index: 3;
 }
-.tl__storybar.is-active {
-  background: rgba(158,194,98,0.30);
+.tl__storybar-seg {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 3px;
+  background: rgba(158,194,98,0.22);
+  border: 1px solid rgba(158,194,98,0.50);
+}
+.tl__storybar.is-active .tl__storybar-seg {
+  background: rgba(158,194,98,0.40);
   border-color: var(--accent);
+  box-shadow: 0 0 6px rgba(158,194,98,0.35);
 }
 .tl__storybar .storybar-label {
   position: absolute;
@@ -2928,8 +2936,10 @@ body.is-idle .veil__grain {
       <!-- horizontal stage -->
       <div class="tl__stage" id="tl-stage">
         <div class="tl__line-bar" id="tl-line-bar" style="display:none">
-          <span class="tl__line-hint">画线模式：拖拽框选起止年份（靠近节点自动吸附）· Esc 取消</span>
+          <span class="tl__line-count" id="tl-line-count">已选 0 段</span>
+          <span class="tl__line-hint">拖拽刷选一段（可多段，gap 自动断开）· Enter 完成 · Esc 取消</span>
           <button class="btn btn--ghost" id="tl-line-cancel" style="padding:6px 12px;font-size:var(--text-xs);">取消</button>
+          <button class="btn btn--primary" id="tl-line-done" style="padding:6px 14px;font-size:var(--text-xs);">完成</button>
         </div>
         <div class="tl__track" id="tl-track">
           <div id="tl-nodes"></div>
@@ -3219,43 +3229,9 @@ body.is-idle .veil__grain {
         <label>剧情线名</label>
         <input type="text" id="story-modal-name" placeholder="如 主角线 / 女主线" />
       </div>
-      <div class="tl__modal-field">
-        <label>起始时间</label>
-        <div class="tl__time-row">
-          <select id="story-start-prec" class="tl__time-prec">
-            <option value="year">年</option><option value="month">月</option>
-            <option value="day">日</option><option value="hour">时</option><option value="minute">分</option>
-          </select>
-          <div class="tl__time-edit">
-            <input type="text" id="story-start-year" placeholder="年" />
-            <input type="number" id="story-start-month" placeholder="月" min="1" max="12" style="display:none" />
-            <input type="number" id="story-start-day" placeholder="日" min="1" max="30" style="display:none" />
-          </div>
-          <div class="tl__time-edit">
-            <input type="number" id="story-start-hour" placeholder="时" min="0" max="23" style="display:none" />
-            <input type="number" id="story-start-minute" placeholder="分" min="0" max="59" style="display:none" />
-          </div>
-        </div>
-      </div>
-      <div class="tl__modal-field">
-        <label>结束时间</label>
-        <div class="tl__time-row">
-          <select id="story-end-prec" class="tl__time-prec">
-            <option value="year">年</option><option value="month">月</option>
-            <option value="day">日</option><option value="hour">时</option><option value="minute">分</option>
-          </select>
-          <div class="tl__time-edit">
-            <input type="text" id="story-end-year" placeholder="年" />
-            <input type="number" id="story-end-month" placeholder="月" min="1" max="12" style="display:none" />
-            <input type="number" id="story-end-day" placeholder="日" min="1" max="30" style="display:none" />
-          </div>
-          <div class="tl__time-edit">
-            <input type="number" id="story-end-hour" placeholder="时" min="0" max="23" style="display:none" />
-            <input type="number" id="story-end-minute" placeholder="分" min="0" max="59" style="display:none" />
-          </div>
-        </div>
-      </div>
-      <p class="tl__loop-hint">起止时间自由填写，不绑定节点；画线刷选时靠近节点会自动吸附到事件的精确时刻</p>
+      <div class="tl__detail-sec-title">时间段（gap 期间与线无关）</div>
+      <div class="tl__detail-chips" id="story-seg-list" style="flex-direction:column;align-items:stretch;gap:4px;"></div>
+      <p class="tl__loop-hint">段由画线刷选累积；每段靠近节点自动吸附到精确时刻</p>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">

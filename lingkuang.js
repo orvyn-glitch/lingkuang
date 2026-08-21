@@ -214,15 +214,16 @@
           }
         }
         if (!isFinite(lo)) { lo = sr.startYear !== undefined ? sr.startYear : 0; hi = sr.endYear !== undefined ? sr.endYear : lo; }
-        return { id: sr.id || ('sl_' + Date.now() + '_' + i), name: sr.name || ('剧情线 ' + (i + 1)), startYear: lo, endYear: hi };
+        return { id: sr.id || ('sl_' + Date.now() + '_' + i), name: sr.name || ('剧情线 ' + (i + 1)),
+          segments: [{ start: Math.min(lo, hi), end: Math.max(lo, hi) }] };
       };
       if (Array.isArray(tl.storyRanges) && !Array.isArray(tl.storylines)) {
         tl.storylines = tl.storyRanges.map(migrateOne);
       }
       if (Array.isArray(tl.storylines)) {
-        /* 已有 storylines 但仍是 nodeIds 旧结构 → 转年份区间 */
+        /* 已有 storylines 但仍是旧单段结构（startYear/endYear 或 nodeIds）→ 转 segments */
         tl.storylines = tl.storylines.map(function (sr, i) {
-          if (isFinite(sr.startYear)) return sr;
+          if (Array.isArray(sr.segments)) return sr;
           return migrateOne(sr, i);
         });
       }
@@ -545,7 +546,8 @@
 var nonlinearMode = false;   /* event-sequence view: nodes at FIXED pitch */
 var seqPitch = 96;           /* px between consecutive events (nonlinear) */
 
-  /* ── 剧情线（主角线/女主线等平行叙事线）：时间范围（自由起止年份），不绑节点 ── */
+  /* ── 剧情线（主角线/女主线等平行叙事线）：多段时间段（segments），gap 期间与线无关 ──
+     segment = { start, end }（小数年份，精确时间）；旧单段 {startYear,endYear} 自动迁移 */
   var storyMode = 'focus';        /* 'focus' 只看剧情 / 'full' 显示世界历史 */
   var activeStoryRangeId = null;  /* 当前聚焦的剧情线 id */
   function storyRangesOf(tl) { return (tl && Array.isArray(tl.storylines)) ? tl.storylines : []; }
@@ -554,19 +556,35 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     for (var i = 0; i < rs.length; i++) if (rs[i].id === id) return rs[i];
     return null;
   }
-  /* 剧情线时间范围 [lo, hi]（标尺/范围条用） */
-  function storyRangeSpan(tl, sr) {
-    if (!sr || !isFinite(sr.startYear) || !isFinite(sr.endYear)) return null;
-    return sr.startYear <= sr.endYear
-      ? { lo: sr.startYear, hi: sr.endYear }
-      : { lo: sr.endYear, hi: sr.startYear };
+  function storySegments(sr) {
+    if (!sr) return [];
+    if (Array.isArray(sr.segments)) return sr.segments;
+    /* 旧单段结构 → 包装成一段 */
+    if (isFinite(sr.startYear) && isFinite(sr.endYear)) {
+      return [{ start: Math.min(sr.startYear, sr.endYear), end: Math.max(sr.startYear, sr.endYear) }];
+    }
+    return [];
   }
-  /* 节点是否在该剧情线时间范围内（自动按年份归属，非显式绑定） */
+  /* 剧情线总范围 [lo, hi]（范围条/标尺用）：首段起点 ~ 末段终点 */
+  function storyRangeSpan(tl, sr) {
+    var segs = storySegments(sr);
+    if (!segs.length) return null;
+    var lo = Infinity, hi = -Infinity;
+    segs.forEach(function (s) {
+      if (s.start < lo) lo = s.start;
+      if (s.end > hi) hi = s.end;
+    });
+    return isFinite(lo) ? { lo: lo, hi: hi } : null;
+  }
+  /* 节点是否落在剧情线任意一段内（gap 内节点不属于线） */
   function nodeInRange(tl, sr, n) {
-    var sp = storyRangeSpan(tl, sr);
-    if (!sp) return true;   /* 线损坏 → 不裁剪（保守） */
+    var segs = storySegments(sr);
+    if (!segs.length) return true;   /* 线损坏 → 不裁剪（保守） */
     var y = absYearOf(n, tl);
-    return y >= sp.lo && y <= sp.hi;
+    for (var i = 0; i < segs.length; i++) {
+      if (y >= segs[i].start && y <= segs[i].end) return true;
+    }
+    return false;
   }
   /* 当前聚焦的范围（无则 null） */
   function activeStoryRange() {
@@ -756,17 +774,26 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   /* 渲染剧情范围条（AE 工作区式：顶部色带 + 范围名；聚焦的加亮） */
   function renderStoryBar(lane, tl, sr) {
     if (nonlinearMode) return;   /* 非线性序列视图不画范围条（坐标语义不同） */
-    var sp = storyRangeSpan(tl, sr);
-    if (!sp) return;
+    var segs = storySegments(sr);
+    if (!segs.length) return;
     var el = document.createElement('div');
     el.className = 'tl__storybar' + (activeStoryRangeId === sr.id ? ' is-active' : '');
     el.setAttribute('data-tl', tl.id);
     el.setAttribute('data-story', sr.id);
+    /* 多段：容器覆盖全程，内部按 segments 渲染色块（gap 断开） */
+    var sp = storyRangeSpan(tl, sr);
     el.style.left = (timeToX(sp.lo) + panXBase) + 'px';
     el.style.width = Math.max(20, timeToX(sp.hi) - timeToX(sp.lo)) + 'px';
+    segs.forEach(function (s) {
+      var seg = document.createElement('div');
+      seg.className = 'tl__storybar-seg';
+      seg.style.left = (timeToX(s.start) - timeToX(sp.lo)) + 'px';
+      seg.style.width = Math.max(3, timeToX(s.end) - timeToX(s.start)) + 'px';
+      el.appendChild(seg);
+    });
     var label = document.createElement('div');
     label.className = 'storybar-label';
-    label.textContent = sr.name || '剧情范围';
+    label.textContent = sr.name || '剧情线';
     el.appendChild(label);
     lane.appendChild(el);
   }
@@ -860,72 +887,76 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     if (mi < 0) mi = 0; if (mi > 59) mi = 59;
     return { year: y, precision: 'minute', month: m, day: d, hour: h, minute: mi };
   }
-  /* 时间输入组：精度切换显示月/日/时/分；返回 update 供外部触发 */
-  function bindTimeGroup(prefix) {
-    var prec = document.getElementById(prefix + '-prec');
-    var m = document.getElementById(prefix + '-month');
-    var d = document.getElementById(prefix + '-day');
-    var h = document.getElementById(prefix + '-hour');
-    var mi = document.getElementById(prefix + '-minute');
-    function update() {
-      var p = prec.value;
-      m.style.display = (p !== 'year') ? '' : 'none';
-      d.style.display = (p === 'day' || p === 'hour' || p === 'minute') ? '' : 'none';
-      h.style.display = (p === 'hour' || p === 'minute') ? '' : 'none';
-      mi.style.display = (p === 'minute') ? '' : 'none';
-    }
-    prec.addEventListener('change', update);
-    update();
-    return update;
-  }
-  var timeGroupUpdate = {};
-  timeGroupUpdate.start = bindTimeGroup('story-start');
-  timeGroupUpdate.end = bindTimeGroup('story-end');
-  function fillTimeGroup(prefix, parts) {
-    document.getElementById(prefix + '-year').value = parts.year;
-    document.getElementById(prefix + '-prec').value = parts.precision;
-    document.getElementById(prefix + '-month').value = (parts.month !== undefined && parts.month !== '') ? parts.month : '';
-    document.getElementById(prefix + '-day').value = (parts.day !== undefined && parts.day !== '') ? parts.day : '';
-    document.getElementById(prefix + '-hour').value = (parts.hour !== undefined && parts.hour !== '') ? parts.hour : '';
-    document.getElementById(prefix + '-minute').value = (parts.minute !== undefined && parts.minute !== '') ? parts.minute : '';
-    if (timeGroupUpdate[prefix]) timeGroupUpdate[prefix]();
-  }
-  /* 时间组 → 小数年份（复用 nodeToTime 的换算） */
-  function timeGroupToValue(prefix) {
-    return nodeToTime({
-      year: parseFloat(document.getElementById(prefix + '-year').value),
-      precision: document.getElementById(prefix + '-prec').value,
-      month: parseInt(document.getElementById(prefix + '-month').value, 10) || undefined,
-      day: parseInt(document.getElementById(prefix + '-day').value, 10) || undefined,
-      hour: parseInt(document.getElementById(prefix + '-hour').value, 10) || undefined,
-      minute: parseInt(document.getElementById(prefix + '-minute').value, 10) || undefined
-    });
+  /* 段显示格式化（小数 → "312年7月 ~ 400年"） */
+  function fmtSeg(s) {
+    var a = partsFromTime(s.start);
+    var b = partsFromTime(s.end);
+    var fmt = function (p) {
+      var s2 = '' + p.year;
+      if (p.precision === 'month') s2 += '年' + p.month + '月';
+      else if (p.precision === 'day') s2 += '年' + p.month + '月' + p.day + '日';
+      else if (p.precision === 'hour') s2 += '年' + p.month + '月' + p.day + '日' + p.hour + '时';
+      else if (p.precision === 'minute') s2 += '年' + p.month + '月' + p.day + '日' + p.hour + '时' + p.minute + '分';
+      return s2;
+    };
+    return fmt(a) + ' ~ ' + fmt(b);
   }
 
-  function openStoryRangeModal(presetStart, presetEnd) {
+  function openStoryRangeModal() {
     var tl = timelines[activeId];
     if (!tl) return;
     document.getElementById('story-modal-title').textContent = '剧情线 · ' + tl.name;
     document.getElementById('story-modal-name').value = '';
-    fillTimeGroup('story-start', partsFromTime(presetStart));
-    fillTimeGroup('story-end', partsFromTime(presetEnd));
+    renderSegList();
     storyModal.style.display = 'flex';
     document.getElementById('story-modal-name').focus();
   }
+  function renderSegList() {
+    var list = document.getElementById('story-seg-list');
+    list.innerHTML = '';
+    pendingSegments.forEach(function (s, i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg);';
+      var txt = document.createElement('span');
+      txt.style.flex = '1';
+      txt.textContent = fmtSeg(s);
+      var del = document.createElement('button');
+      del.className = 'tl__eyedrop';
+      del.textContent = '×';
+      del.title = '删除该段';
+      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
+      del.addEventListener('click', function () {
+        pendingSegments.splice(i, 1);
+        renderSegList();
+        applySegHighlights();
+        updateLineCount();
+      });
+      row.appendChild(txt);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
 
-  /* ── 画线模式：刷选起止年份 → 命名 → 创建剧情线（自由范围，靠近节点吸附）── */
+  /* ── 画线模式：刷选累积多段 → 命名 → 创建剧情线（gap 期间与线无关）── */
   var lineMode = false;            /* 画线模式开关 */
+  var pendingSegments = [];        /* 本次累积的时间段 [{start,end}, ...]（小数年份） */
   var brushDrag = null;            /* { startVx, startT, curT } or null */
   var brushSel = null;             /* 选区高亮 div（stage 内，视口坐标） */
   var lineBar = document.getElementById('tl-line-bar');
+  var lineCount = document.getElementById('tl-line-count');
   var brushBtn = document.getElementById('tl-brush-btn');
   function lineBarShow() { if (lineBar) lineBar.style.display = 'flex'; }
   function lineBarHide() { if (lineBar) lineBar.style.display = 'none'; }
+  function updateLineCount() {
+    if (lineCount) lineCount.textContent = '已选 ' + pendingSegments.length + ' 段';
+  }
   function exitLineMode() {
     lineMode = false;
     brushMode = false;
     brushDrag = null;
     clearBrushSel();
+    pendingSegments = [];
+    clearSegHighlights();
     lineBarHide();
     if (brushBtn) brushBtn.classList.remove('is-on');
   }
@@ -934,13 +965,33 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       lineMode = !lineMode;
       brushMode = lineMode;   /* 画线模式内拖拽 = 刷选 */
       brushBtn.classList.toggle('is-on', lineMode);
-      if (lineMode) lineBarShow();
+      if (lineMode) { pendingSegments = []; lineBarShow(); updateLineCount(); }
       else exitLineMode();
     });
   }
   function clearBrushSel() {
     if (brushSel && brushSel.parentNode) brushSel.parentNode.removeChild(brushSel);
     brushSel = null;
+  }
+  /* 已选段的视觉高亮：把段内节点元素标记 is-inline（gap 内不标） */
+  function applySegHighlights() {
+    clearSegHighlights();
+    if (!pendingSegments.length) return;
+    var tl = timelines[activeId];
+    if (!tl) return;
+    nodesEl.querySelectorAll('.tl__n').forEach(function (el) {
+      if (!el._node) return;
+      var y = absYearOf(el._node, tl);
+      for (var i = 0; i < pendingSegments.length; i++) {
+        if (y >= pendingSegments[i].start && y <= pendingSegments[i].end) {
+          el.classList.add('is-inline');
+          break;
+        }
+      }
+    });
+  }
+  function clearSegHighlights() {
+    nodesEl.querySelectorAll('.tl__n.is-inline').forEach(function (el) { el.classList.remove('is-inline'); });
   }
   /* 视口 x → 年份（节点显示 x = timeToX(t) + panX，反推 t） */
   function brushYearFromVx(vx) { return xToTime(vx - panX); }
@@ -956,7 +1007,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     });
     return (best !== null && bestD <= snapDist) ? best : y;
   }
-  /* 刷选结束：起止年份（吸附）→ 弹命名面板（可手动改起止） */
+  /* 刷选结束：吸附起止 → 累积为一段（可继续刷选下一段） */
   function finishBrush() {
     if (!brushDrag) return;
     var t0 = brushDrag.startT, t1 = brushDrag.curT;
@@ -967,10 +1018,21 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     var loT = Math.min(t0, t1), hiT = Math.max(t0, t1);
     loT = snapToNodeYear(tl, loT);
     hiT = snapToNodeYear(tl, hiT);
-    /* 保留精确值（小数年份 = 月/日/时/分精度），不取整——边界精确匹配节点时间 */
-    openStoryRangeModal(loT, hiT);
+    if (Math.abs(hiT - loT) < 1e-9) return;   /* 零宽段忽略 */
+    pendingSegments.push({ start: loT, end: hiT });
+    applySegHighlights();
+    updateLineCount();
   }
-  /* Enter 完成画线 / Esc 取消 */
+  /* 完成：弹命名面板（段列表可编辑） */
+  function finishLine() {
+    if (!pendingSegments.length) { exitLineMode(); return; }
+    openStoryRangeModal();
+  }
+  var lineDoneBtn = document.getElementById('tl-line-done');
+  var lineCancelBtn = document.getElementById('tl-line-cancel');
+  if (lineDoneBtn) lineDoneBtn.addEventListener('click', finishLine);
+  if (lineCancelBtn) lineCancelBtn.addEventListener('click', exitLineMode);
+  /* Esc 取消画线 */
   document.addEventListener('keydown', function (e) {
     if (!lineMode) return;
     if (e.key === 'Escape') { e.preventDefault(); exitLineMode(); }
@@ -978,16 +1040,14 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   function confirmStoryRange() {
     var tl = timelines[activeId];
     var errEl = document.getElementById('story-modal-error');
-    var startT = timeGroupToValue('story-start');
-    var endT = timeGroupToValue('story-end');
-    if (!isFinite(startT) || !isFinite(endT)) {
-      errEl.textContent = '请填写起始和结束时间（可刷选自动填入）';
+    if (!pendingSegments.length) {
+      errEl.textContent = '请先刷选至少一个时间段';
       errEl.style.display = '';
       return;
     }
     var name = document.getElementById('story-modal-name').value.trim() || ('剧情线 ' + (storyRangesOf(tl).length + 1));
     if (!Array.isArray(tl.storylines)) tl.storylines = [];
-    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, startYear: startT, endYear: endT });
+    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, segments: pendingSegments.map(function (s) { return { start: s.start, end: s.end }; }) });
     saveTimelines();
     storyModal.style.display = 'none';
     exitLineMode();
