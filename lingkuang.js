@@ -717,9 +717,13 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     var tl = timelines[activeId];
     if (!tl || !storyRangesOf(tl).length) return;
     storyMode = storyMode === 'focus' ? 'full' : 'focus';
+    /* renderTimeline 内 focusTrackTop 会重置视角 → keepPan 恢复，避免乱飞 */
+    var keepPanX = panX, keepPanY = panY, keepSpacing = NODE_SPACING;
     fillStorySelect();
     renderTimeline(false);
-    applyModeView(); applyPan();
+    panX = keepPanX; panY = keepPanY;
+    NODE_SPACING = keepSpacing;
+    updatePositions(); applyModeView(); applyPan();
   });
   storySelect.addEventListener('change', function () {
     var v = storySelect.value;
@@ -728,20 +732,63 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       storyMode = 'focus';
       activeStoryRangeId = v;
     }
+    var keepPanX = panX, keepPanY = panY, keepSpacing = NODE_SPACING;
     fillStorySelect();
     renderTimeline(false);
-    applyModeView(); applyPan();
+    panX = keepPanX; panY = keepPanY;
+    NODE_SPACING = keepSpacing;
+    updatePositions(); applyModeView(); applyPan();
   });
 
-  function openStoryRangeModal() {
+  function openStoryRangeModal(presetStart, presetEnd) {
     var tl = timelines[activeId];
     if (!tl) return;
     document.getElementById('story-modal-title').textContent = '剧情范围 · ' + tl.name;
     document.getElementById('story-modal-name').value = '';
-    srStartId = null; srEndId = null;
+    srStartId = presetStart || null;
+    srEndId = presetEnd || null;
     updateStoryPickUI();
     storyModal.style.display = 'flex';
     document.getElementById('story-modal-name').focus();
+  }
+
+  /* ── 刷子工具：拖拽框选时间区间 → 创建剧情范围（AE 工作区式）── */
+  var brushMode = false;
+  var brushDrag = null;      /* { startVx, startT, curT } or null */
+  var brushSel = null;       /* 选区高亮 div（stage 内，视口坐标） */
+  var brushBtn = document.getElementById('tl-brush-btn');
+  if (brushBtn) {
+    brushBtn.addEventListener('click', function () {
+      brushMode = !brushMode;
+      brushBtn.classList.toggle('is-on', brushMode);
+      if (!brushMode) { clearBrushSel(); brushDrag = null; }
+    });
+  }
+  function clearBrushSel() {
+    if (brushSel && brushSel.parentNode) brushSel.parentNode.removeChild(brushSel);
+    brushSel = null;
+  }
+  /* 视口 x → 年份（节点显示 x = timeToX(t) + panX，反推 t） */
+  function brushYearFromVx(vx) { return xToTime(vx - panX); }
+  /* 刷子松手：区间内节点 → 最左/最右为起终 → 弹命名面板（预填） */
+  function finishBrush() {
+    if (!brushDrag) return;
+    var t0 = brushDrag.startT, t1 = brushDrag.curT;
+    var loT = Math.min(t0, t1), hiT = Math.max(t0, t1);
+    var tl = timelines[activeId];
+    var inRange = [];
+    if (tl && Array.isArray(tl.nodes)) {
+      tl.nodes.forEach(function (n) {
+        var y = absYearOf(n, tl);
+        if (y >= loT && y <= hiT) inRange.push(n);
+      });
+    }
+    clearBrushSel();
+    brushDrag = null;
+    if (inRange.length >= 2) {
+      inRange.sort(function (a, b) { return absYearOf(a, tl) - absYearOf(b, tl); });
+      openStoryRangeModal(inRange[0].id, inRange[inRange.length - 1].id);
+    }
   }
   function updateStoryPickUI() {
     var tl = timelines[activeId];
@@ -2601,18 +2648,27 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
      end. Runs after every rebuild (NODE_SPACING / panXBase may change). */
   function syncAxisSpan() {
     var lo = Infinity, hi = -Infinity;
+    var focusRange = activeStoryRange();   /* 聚焦模式：标尺也裁剪到剧情范围内 */
     (multiMode ? order.slice() : [activeId]).forEach(function (id) {
       var tl = timelines[id];
       if (!tl) return;
-      /* 循环节点范围，axis 需覆盖循环框 */
+      /* 循环节点范围，axis 需覆盖循环框（聚焦时只看与范围重叠的循环） */
       loopsOf(tl).forEach(function (L) {
         var r = loopRange(tl, L);
         if (r) {
+          if (focusRange && id === activeId) {
+            var sp = storyRangeSpan(tl, focusRange);
+            var ovLo = sp ? Math.max(r.lo, sp.lo) : r.lo;
+            var ovHi = sp ? Math.min(r.hi, sp.hi) : r.hi;
+            if (ovHi < ovLo) return;   /* 循环在范围外 → 不计入标尺 */
+          }
           hi = Math.max(hi, r.hi);
           lo = Math.min(lo, r.lo);
         }
       });
       if (Array.isArray(tl.nodes)) tl.nodes.forEach(function (n) {
+        /* 聚焦剧情范围：范围外节点不计入标尺（世界历史裁剪） */
+        if (focusRange && id === activeId && !nodeInRange(tl, focusRange, n)) return;
         var t = absYearOf(n, tl);
         if (t < lo) lo = t;
         if (t > hi) hi = t;
@@ -3105,6 +3161,19 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     if (e.button !== 0) return;
     /* clicks on the info panel's inputs are for editing, not panning */
     if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+    /* 刷子模式：拖拽框选时间区间（不平移） */
+    if (brushMode && !e.altKey) {
+      var rect0 = stage.getBoundingClientRect();
+      var vx0 = e.clientX - rect0.left;
+      brushDrag = { startVx: vx0, startT: brushYearFromVx(vx0) };
+      brushSel = document.createElement('div');
+      brushSel.className = 'tl__brush-sel';
+      brushSel.style.left = vx0 + 'px';
+      brushSel.style.width = '0px';
+      stage.appendChild(brushSel);
+      e.preventDefault();
+      return;
+    }
     dragging = true; moved = false;
     dragStartX = e.clientX;
     lastDragX = e.clientX;
@@ -3112,6 +3181,18 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     track.classList.add('is-panning');
   });
   window.addEventListener('pointermove', function (e) {
+    /* 刷子拖拽：实时更新选区高亮 */
+    if (brushDrag) {
+      var rect1 = stage.getBoundingClientRect();
+      var vx = e.clientX - rect1.left;
+      brushDrag.curT = brushYearFromVx(vx);
+      if (brushSel) {
+        var l = Math.min(brushDrag.startVx, vx);
+        brushSel.style.left = l + 'px';
+        brushSel.style.width = Math.abs(vx - brushDrag.startVx) + 'px';
+      }
+      return;
+    }
     /* zoom drag only while the RIGHT button is physically held — a stale
        zoomDrag (lost pointerup) must not zoom on plain mouse movement */
     if (zoomDrag && (e.buttons & 2)) {
@@ -3201,6 +3282,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     panClampLock = false;   /* re-enable viewport clamping */
     track.classList.remove('is-panning');
     if (document.pointerLockElement) document.exitPointerLock();
+    if (typeof finishBrush === 'function') finishBrush();   /* 刷子松手：框选 → 剧情范围 */
   }
   window.addEventListener('pointerup', endDrag);
   window.addEventListener('pointercancel', endDrag);

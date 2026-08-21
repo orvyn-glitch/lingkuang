@@ -982,6 +982,18 @@ body.is-idle .veil__grain {
   outline: none;
   cursor: pointer;
 }
+/* 刷子工具：拖拽选区高亮（荧光绿半透明边框，AE 工作区风格） */
+.tl__brush-sel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: rgba(158, 194, 98, 0.10);
+  border: 1px solid rgba(158, 194, 98, 0.55);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px rgba(158, 194, 98, 0.08);
+}
 .tl__multi-toggle.is-on { background: var(--accent); color: var(--accent-on); }
 /* 剧情范围面板的吸取按钮：大按钮全宽，好点 */
 .story-pick-btn {
@@ -2890,6 +2902,7 @@ body.is-idle .veil__grain {
         <button class="tl__multi-toggle" id="tl-nonlinear" title="事件序列视图（节点等距排列）">序列</button>
         <button class="tl__multi-toggle" id="tl-multi" title="并列显示所有时间线">并列</button>
         <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情范围 / 显示世界历史">剧情</button>
+        <button class="tl__multi-toggle" id="tl-brush-btn" title="刷子：拖拽框选时间区间创建剧情范围">刷子</button>
         <select class="tl__story-select" id="tl-story-select" style="display:none"></select>
         <div class="tl__multi-mask" id="tl-multi-mask"></div>
         <div id="tl-tabs" class="tl__tabs is-ready" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap"></div>
