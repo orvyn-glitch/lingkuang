@@ -35,7 +35,7 @@ export function renderShell(store: Store, host: HTMLElement): void {
     </div>`;
 
   renderWorldTabs(store);
-  renderToolbar();
+  renderToolbar(store);
   renderTimelineTabs(store);
   const timelineBody = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-body') as HTMLElement;
   mountTimeline(store, timelineBody, (node) => {
@@ -109,7 +109,7 @@ function renderTimelineTabs(store: Store): void {
   }
 }
 
-function renderToolbar(): void {
+function renderToolbar(store: Store): void {
   const bar = document.getElementById('lk-toolbar');
   const toolHost = document.getElementById('lk-tool-host');
   if (!bar || !toolHost) return;
@@ -123,7 +123,7 @@ function renderToolbar(): void {
     el.addEventListener('click', () => {
       bar.querySelectorAll('.lk-tool-btn').forEach((b) => b.classList.remove('is-active'));
       el.classList.add('is-active');
-      openTool((el as HTMLElement).dataset.tool!, toolHost);
+      openTool((el as HTMLElement).dataset.tool!, toolHost, store);
     });
   });
 }

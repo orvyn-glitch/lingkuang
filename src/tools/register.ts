@@ -16,6 +16,12 @@ export function registerAllTools(): void {
     open(host) { host.innerHTML = ''; },   /* 点击回到沙盘主视图（清空右侧面板） */
   });
   registerTool({ id: 'inspire', name: '灵感触发器', icon: IC.dice });
+  registerTool({
+    id: 'editor', name: '编辑器', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    open(host, store) {
+      if (store) import('../ui/editor').then((m) => m.renderEditor(store, host));
+    },
+  });
   registerTool({ id: 'ai', name: 'AI', icon: IC.brain, placeholder: true });
   registerTool({ id: 'settings', name: '设置', icon: IC.settings, placeholder: true });
   /* 占位模块：素材库 / 编辑器独立入口 */
