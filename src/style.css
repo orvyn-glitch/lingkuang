@@ -1,0 +1,114 @@
+/* 灵框 · AE 风主题：圆角少、工具感强、阈限梦核底色（自定义变量，可换主题） */
+:root {
+  --bg: #c5c2ba;
+  --surface: #d8d5cc;
+  --surface-2: #c9c6bd;
+  --chrome: #17171a;
+  --chrome-2: #232327;
+  --fg: #232324;
+  --fg-2: #5a5852;
+  --fg-inverse: #e8e7df;
+  --accent: #9ec262;
+  --accent-on: #17181a;
+  --border: #9a978e;
+  --border-soft: rgba(58, 58, 52, 0.14);
+  --radius: 2px;          /* AE 风：圆角小 */
+  --radius-sm: 2px;
+  --font: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-base: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: var(--text-base);
+  color: var(--fg);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.lk-app { display: flex; flex-direction: column; height: 100%; }
+
+/* 世界栏（顶部世界 tab + 工具栏） */
+.lk-worldbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--chrome);
+  color: var(--fg-inverse);
+  border-bottom: 1px solid var(--chrome-2);
+  min-height: 40px;
+}
+.lk-worldbar-tabs { display: flex; align-items: center; gap: 2px; padding: 0 8px; flex: 1; overflow-x: auto; }
+.lk-world-tab {
+  background: none;
+  border: none;
+  color: var(--fg-inverse);
+  opacity: 0.65;
+  font-size: var(--text-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.lk-world-tab:hover { opacity: 1; background: var(--chrome-2); }
+.lk-world-tab.is-active { opacity: 1; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.lk-worldbar-tools { display: flex; align-items: center; gap: 2px; padding: 0 8px; border-left: 1px solid var(--chrome-2); }
+.lk-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--fg-inverse);
+  opacity: 0.7;
+  font-size: var(--text-xs);
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.lk-tool-btn:hover { opacity: 1; background: var(--chrome-2); }
+.lk-tool-btn.is-active { opacity: 1; color: var(--accent); background: var(--chrome-2); }
+.lk-tool-btn.is-ph { opacity: 0.4; }
+.lk-tool-btn.is-ph:hover { opacity: 0.7; }
+
+/* 主区：沙盘（时间线在上/地图在下）+ 工具宿主 */
+.lk-main { flex: 1; display: flex; min-height: 0; }
+.lk-sandbox { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.lk-pane { display: flex; flex-direction: column; min-height: 0; }
+.lk-pane-timeline { flex: 1; border-bottom: 1px solid var(--border); }
+.lk-pane-map { flex: 1; }
+.lk-pane-head {
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  color: var(--fg-2);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lk-ph { color: var(--accent); font-size: 10px; }
+.lk-pane-body { flex: 1; min-height: 0; overflow: auto; }
+.lk-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  background:
+    linear-gradient(rgba(58, 58, 52, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(58, 58, 52, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.lk-tool-host {
+  width: 300px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  min-height: 0;
+  overflow: auto;
+}

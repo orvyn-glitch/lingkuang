@@ -38,7 +38,11 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  win.loadFile('index.html');
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile('index.html');
+  }
   /* F12 toggles DevTools — handy for dragging/eyeballing element positions
      (menu bar was removed, so the default accelerator is gone) */
   win.webContents.on('before-input-event', (e, input) => {
