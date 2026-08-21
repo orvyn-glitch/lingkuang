@@ -3204,14 +3204,14 @@ body.is-idle .veil__grain {
       <div class="tl__modal-field" style="display:flex; gap:12px;">
         <div style="flex:1">
           <label>起始年份</label>
-          <input type="number" id="story-modal-start" />
+          <input type="number" id="story-modal-start" step="any" />
         </div>
         <div style="flex:1">
           <label>结束年份</label>
-          <input type="number" id="story-modal-end" />
+          <input type="number" id="story-modal-end" step="any" />
         </div>
       </div>
-      <p class="tl__loop-hint">起止年份自由填写，不绑定节点；画线刷选时靠近节点会自动吸附对齐</p>
+      <p class="tl__loop-hint">起止年份自由填写（支持精确时间，如 312.5 = 312年7月），不绑定节点；画线刷选时靠近节点会自动吸附到事件的精确时刻</p>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">

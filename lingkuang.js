@@ -902,7 +902,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     var loT = Math.min(t0, t1), hiT = Math.max(t0, t1);
     loT = snapToNodeYear(tl, loT);
     hiT = snapToNodeYear(tl, hiT);
-    openStoryRangeModal(Math.round(loT), Math.round(hiT));
+    /* 保留精确值（小数年份 = 月/日/时/分精度），不取整——边界精确匹配节点时间 */
+    openStoryRangeModal(loT, hiT);
   }
   /* Enter 完成画线 / Esc 取消 */
   document.addEventListener('keydown', function (e) {
