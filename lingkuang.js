@@ -178,10 +178,9 @@
   document.getElementById('entity-type-add').addEventListener('click', function () {
     var ws = worldsets[activeWorldset];
     var types = entityTypesOf(ws);
-    var name = prompt('类型名（如 角色/地点/物品）：');
-    if (!name) return;
+    /* Electron 禁用原生 prompt → 直接建空类型，名字在类型编辑 modal 里填 */
     var tid = 't' + Date.now();
-    types[tid] = { id: tid, name: name.trim(), fields: [] };
+    types[tid] = { id: tid, name: '', fields: [] };
     renderEntityTypeSelect();
     entityTypeSelect.value = tid;
     openTypeEditor(tid);
