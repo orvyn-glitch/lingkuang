@@ -3,6 +3,7 @@ import type { Store } from '../store/store';
 import { listTools, openTool } from '../tools/registry';
 import { registerAllTools } from '../tools/register';
 import { mountTimeline } from './timeline';
+import { renderNodeDetail } from './detail';
 
 export function renderShell(store: Store, host: HTMLElement): void {
   registerAllTools();
@@ -30,7 +31,11 @@ export function renderShell(store: Store, host: HTMLElement): void {
 
   renderWorldTabs(store);
   renderToolbar(store, host);
-  mountTimeline(store, document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-body') as HTMLElement);
+  const timelineBody = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-body') as HTMLElement;
+  mountTimeline(store, timelineBody, (node) => {
+    const toolHost = document.getElementById('lk-tool-host');
+    if (toolHost) renderNodeDetail(store, toolHost, node);
+  });
   store.subscribe(() => renderWorldTabs(store));
 }
 

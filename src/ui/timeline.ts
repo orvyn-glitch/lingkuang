@@ -1,4 +1,4 @@
-/** 世界沙盘 · 时间线视图（TS 版核心）——节点横排 + 平移缩放 + 时间指针 */
+/** 世界沙盘 · 时间线视图（TS 版核心）——节点横排 + 平移缩放 + 时间指针 + 详情面板 */
 import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { getTimeline, setTimeCursor } from '../store/actions';
@@ -10,7 +10,11 @@ interface View {
   spacing: number;      // px/年
 }
 
-export function mountTimeline(store: Store, host: HTMLElement): void {
+export function mountTimeline(
+  store: Store,
+  host: HTMLElement,
+  onSelect?: (node: TimelineNode) => void
+): void {
   host.innerHTML = `
     <div class="tl-wrap" style="position:relative;width:100%;height:100%;overflow:hidden;cursor:crosshair;">
       <div class="tl-track" style="position:absolute;top:24px;left:0;right:0;bottom:0;"></div>
@@ -36,7 +40,10 @@ export function mountTimeline(store: Store, host: HTMLElement): void {
 
   function render() {
     const tl = timeline();
-    if (!tl) { track.innerHTML = '<div style="padding:20px;font-size:var(--text-sm);color:var(--fg-2);">无时间线 · 待建</div>'; return; }
+    if (!tl) {
+      track.innerHTML = '<div style="padding:20px;font-size:var(--text-sm);color:var(--fg-2);">无时间线 · 待建</div>';
+      return;
+    }
     const nodes = tl.nodes;
     track.innerHTML =
       `<div style="position:absolute;left:0;right:0;top:0;height:40px;"></div>` +
@@ -55,7 +62,10 @@ export function mountTimeline(store: Store, host: HTMLElement): void {
   function updateCursor() {
     const ws = currentWorld(store);
     const t = ws.timeCursor;
-    if (t === null || t === undefined) { cursorEl.style.display = 'none'; return; }
+    if (t === null || t === undefined) {
+      cursorEl.style.display = 'none';
+      return;
+    }
     cursorEl.style.display = '';
     cursorEl.style.left = yearX(t) + 'px';
   }
@@ -69,7 +79,8 @@ export function mountTimeline(store: Store, host: HTMLElement): void {
   wrap.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).closest('.tl-node')) return;
     if (spaceDown) {
-      dragging = true; lastX = e.clientX;
+      dragging = true;
+      lastX = e.clientX;
       wrap.style.cursor = 'grabbing';
       return;
     }
@@ -91,10 +102,20 @@ export function mountTimeline(store: Store, host: HTMLElement): void {
       updateCursor();
     }
   });
-  window.addEventListener('pointerup', () => { dragging = false; cursorDrag = false; wrap.style.cursor = 'crosshair'; });
-  window.addEventListener('keydown', (e) => { if (e.code === 'Space' && !spaceDown) spaceDown = true; });
-  window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceDown = false; });
-  window.addEventListener('blur', () => { spaceDown = false; });
+  window.addEventListener('pointerup', () => {
+    dragging = false;
+    cursorDrag = false;
+    wrap.style.cursor = 'crosshair';
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !spaceDown) spaceDown = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') spaceDown = false;
+  });
+  window.addEventListener('blur', () => {
+    spaceDown = false;
+  });
   wrap.addEventListener(
     'wheel',
     (e) => {
@@ -111,12 +132,12 @@ export function mountTimeline(store: Store, host: HTMLElement): void {
     { passive: false }
   );
 
-  /* 节点点击 → 占位详情（后续接面板） */
+  /* 节点点击 → 详情面板 */
   track.addEventListener('click', (e) => {
     const nodeEl = (e.target as HTMLElement).closest('.tl-node') as HTMLElement | null;
     if (!nodeEl) return;
     const n = timeline()?.nodes.find((x) => x.id === nodeEl.dataset.id);
-    if (n) console.log('选中节点（详情面板待接）:', n.title);
+    if (n && onSelect) onSelect(n);
   });
 
   store.subscribe(() => render());
