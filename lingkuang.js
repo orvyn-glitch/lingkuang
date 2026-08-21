@@ -9,165 +9,6 @@
   }
   tick(); setInterval(tick, 1000);
 
-  /* ── 角色版本化（GIF 差分模型）：初稿 profile + 事件 impacts 差异帧，时间指针物化 ── */
-  /* 角色此刻状态 = 初稿 + 所有 ≤ at 的事件对该角色的影响（同 aspect 覆盖，异则追加） */
-  function materializeCharacter(tl, charNode, at) {
-    var state = [];
-    var idx = {};
-    (Array.isArray(charNode.profile) ? charNode.profile : []).forEach(function (p) {
-      if (!p || p.k === undefined || p.k === null || p.k === '') return;
-      state.push({ k: p.k, v: p.v });
-      idx[p.k] = state.length - 1;
-    });
-    (Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
-      if (n === charNode || n.type === 'loop-boundary') return;
-      if (at !== null && at !== undefined && absYearOf(n, tl) > at) return;   /* 未发生的不算 */
-      if (!Array.isArray(n.impacts)) return;
-      n.impacts.forEach(function (imp) {
-        if (!imp || imp.charId !== charNode.id) return;
-        (Array.isArray(imp.points) ? imp.points : []).forEach(function (pt) {
-          if (!pt || !pt.aspect) return;
-          if (idx[pt.aspect] !== undefined) state[idx[pt.aspect]].v = pt.change;
-          else { state.push({ k: pt.aspect, v: pt.change }); idx[pt.aspect] = state.length - 1; }
-        });
-      });
-    });
-    return state;
-  }
-  /* 角色所有影响帧（按事件时间排序，供演变列表） */
-  function characterFrames(tl, charNode) {
-    var frames = [];
-    (Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
-      if (n === charNode || n.type === 'loop-boundary') return;
-      if (!Array.isArray(n.impacts)) return;
-      n.impacts.forEach(function (imp) {
-        if (imp && imp.charId === charNode.id) {
-          frames.push({ t: absYearOf(n, tl), eventTitle: n.title, points: imp.points || [] });
-        }
-      });
-    });
-    frames.sort(function (a, b) { return a.t - b.t; });
-    return frames;
-  }
-  /* 初稿键值对渲染（可编辑/删除/添加） */
-  function renderProfile(n) {
-    var list = document.getElementById('d-profile-list');
-    list.innerHTML = '';
-    (Array.isArray(n.profile) ? n.profile : []).forEach(function (p, i) {
-      if (!p) return;
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:6px;align-items:center;';
-      var kIn = document.createElement('input');
-      kIn.value = p.k || '';
-      kIn.placeholder = '方面';
-      kIn.style.cssText = 'flex:1;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
-      var vIn = document.createElement('input');
-      vIn.value = p.v || '';
-      vIn.placeholder = '值';
-      vIn.style.cssText = 'flex:1.4;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
-      var del = document.createElement('button');
-      del.className = 'tl__eyedrop';
-      del.textContent = '×';
-      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
-      function commit() {
-        p.k = kIn.value.trim();
-        p.v = vIn.value.trim();
-        if (!p.k) { n.profile.splice(i, 1); }
-        saveTimelines();
-        renderEvolution(n);
-      }
-      kIn.addEventListener('change', commit);
-      vIn.addEventListener('change', commit);
-      del.addEventListener('click', function () { n.profile.splice(i, 1); saveTimelines(); renderProfile(n); renderEvolution(n); });
-      row.appendChild(kIn); row.appendChild(vIn); row.appendChild(del);
-      list.appendChild(row);
-    });
-  }
-  /* 事件影响渲染（选角色 + 差异点，可删） */
-  function renderImpacts(n) {
-    var list = document.getElementById('d-impacts-list');
-    list.innerHTML = '';
-    (Array.isArray(n.impacts) ? n.impacts : []).forEach(function (imp, i) {
-      if (!imp) return;
-      var tl = timelines[activeId];
-      var cn = findNodeById(tl, imp.charId);
-      var row = document.createElement('div');
-      row.style.cssText = 'padding:5px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg);';
-      var head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;gap:6px;';
-      var name = document.createElement('span');
-      name.style.flex = '1';
-      name.textContent = (cn ? cn.title : '角色') + (imp.points && imp.points.length ? ' · ' + imp.points.map(function (p) { return p.aspect + '→' + p.change; }).join('、') : '');
-      var del = document.createElement('button');
-      del.className = 'tl__eyedrop';
-      del.textContent = '×';
-      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
-      del.addEventListener('click', function () { n.impacts.splice(i, 1); saveTimelines(); renderImpacts(n); });
-      head.appendChild(name); head.appendChild(del);
-      row.appendChild(head);
-      list.appendChild(row);
-    });
-  }
-  /* 角色演变：此刻状态 + 差异帧列表 */
-  function renderEvolution(n) {
-    var box = document.getElementById('d-evolution');
-    if (!box) return;
-    var tl = timelines[activeId];
-    var at = timeCursor;
-    var state = materializeCharacter(tl, n, at);
-    var frames = characterFrames(tl, n);
-    box.innerHTML = '';
-    var now = document.createElement('div');
-    now.style.cssText = 'padding:5px 8px;background:rgba(158,194,98,0.12);border:1px solid rgba(158,194,98,0.4);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg);';
-    now.innerHTML = '<b>此刻</b>（指针 ' + fmtScale(Math.round(at * 100) / 100) + '）：' + (state.length ? state.map(function (s) { return s.k + '=' + s.v; }).join(' · ') : '无特征');
-    box.appendChild(now);
-    if (frames.length) {
-      var fh = document.createElement('div');
-      fh.style.cssText = 'margin-top:4px;font-size:var(--text-xs);color:var(--meta);';
-      fh.textContent = '演变帧：';
-      box.appendChild(fh);
-      frames.forEach(function (f) {
-        var fr = document.createElement('div');
-        fr.style.cssText = 'padding:3px 6px;font-size:var(--text-xs);color:var(--fg-2);';
-        fr.textContent = fmtScale(Math.round(f.t * 100) / 100) + ' · ' + (f.eventTitle || '事件') + ' → ' + f.points.map(function (p) { return p.aspect + '→' + p.change; }).join('、');
-        box.appendChild(fr);
-      });
-    }
-  }
-  /* 角色添加特征 / 事件添加影响的 UI 绑定 */
-  var profileAddBtn = document.getElementById('d-profile-add');
-  var impactsAddBtn = document.getElementById('d-impacts-add');
-  if (profileAddBtn) {
-    profileAddBtn.addEventListener('click', function () {
-      var n = openNodeEl ? openNodeEl._node : null;
-      if (!n) return;
-      if (!Array.isArray(n.profile)) n.profile = [];
-      n.profile.push({ k: '', v: '' });
-      renderProfile(n);
-    });
-  }
-  if (impactsAddBtn) {
-    impactsAddBtn.addEventListener('click', function () {
-      var n = openNodeEl ? openNodeEl._node : null;
-      if (!n) return;
-      var tl = timelines[activeId];
-      var chars = (Array.isArray(tl.nodes) ? tl.nodes : []).filter(function (x) { return x.type === 'plot'; });
-      if (!chars.length) { alert('先创建角色节点（剧情/人物类型）'); return; }
-      var charId = prompt('影响哪个角色？', chars[0].title);
-      var cn = chars.filter(function (x) { return x.title === charId; })[0];
-      if (!cn) return;
-      var aspect = prompt('影响哪个方面？');
-      var change = prompt('变成什么？');
-      if (!aspect) return;
-      if (!Array.isArray(n.impacts)) n.impacts = [];
-      var imp = n.impacts.filter(function (x) { return x.charId === cn.id; })[0];
-      if (imp) imp.points.push({ aspect: aspect, change: change || '' });
-      else n.impacts.push({ charId: cn.id, points: [{ aspect: aspect, change: change || '' }] });
-      saveTimelines();
-      renderImpacts(n);
-    });
-  }
-
   /* ── view switching ────────────────────────────────────── */
   var views = {
     lobby: document.getElementById('view-lobby'),
@@ -758,10 +599,6 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       var isFuture = absYearOf(el._node, tl) > timeCursor;
       el.classList.toggle('is-future', isFuture);
     });
-    /* 拖动指针：实时刷新打开的角色演变的"此刻状态" */
-    if (typeof renderEvolution === 'function' && openNodeEl && openNodeEl._node && openNodeEl._node.type === 'plot') {
-      renderEvolution(openNodeEl._node);
-    }
   }
   /* 拖动手柄改指针时间（window 级监听，不依赖 pointer capture——鼠标移出也实时更新） */
   var cursorDragging = false;
@@ -1921,24 +1758,6 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     addLinkedInput(people, n, 'people', '人物', el);
     addLinkedInput(places, n, 'places', '地点', el);
     foot.textContent = n.type === 'year' ? '年代锚点' : (n.type === 'plot' ? '剧情 / 人物节点' : '世界事件节点');
-    /* 角色版本化：plot 显示档案+演变，event 显示角色影响 */
-    var profileBox = document.getElementById('d-profile');
-    var impactsBox = document.getElementById('d-impacts');
-    if (profileBox && impactsBox) {
-      if (n.type === 'plot') {
-        profileBox.style.display = '';
-        impactsBox.style.display = 'none';
-        renderProfile(n);
-        renderEvolution(n);
-      } else if (n.type === 'event') {
-        impactsBox.style.display = '';
-        profileBox.style.display = 'none';
-        renderImpacts(n);
-      } else {
-        profileBox.style.display = 'none';
-        impactsBox.style.display = 'none';
-      }
-    }
 
     /* delete this node (loop clones remove from their style template so
        every synchronized cycle loses it too) */
