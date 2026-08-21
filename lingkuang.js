@@ -49,38 +49,49 @@
     frames.sort(function (a, b) { return a.t - b.t; });
     return frames;
   }
-  /* 初稿键值对渲染（可编辑/删除/添加） */
+  /* 档案文本解析：每行 `#方面：值` 或 `方面：值`（# 为高亮标记） */
+  function parseProfileText(text) {
+    var profile = [];
+    String(text).split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line) return;
+      var m = line.match(/^#?\s*([^：:]+)[：:]\s*(.*)$/);
+      if (m && m[1].trim()) profile.push({ k: m[1].trim(), v: m[2].trim() });
+    });
+    return profile;
+  }
+  /* 初稿档案：高亮显示（#方面 accent 标签） + 点击进入文本编辑，失焦解析回结构化 */
   function renderProfile(n) {
     var list = document.getElementById('d-profile-list');
-    list.innerHTML = '';
-    (Array.isArray(n.profile) ? n.profile : []).forEach(function (p, i) {
-      if (!p) return;
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:6px;align-items:center;';
-      var kIn = document.createElement('input');
-      kIn.value = p.k || '';
-      kIn.placeholder = '方面';
-      kIn.style.cssText = 'flex:1;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
-      var vIn = document.createElement('input');
-      vIn.value = p.v || '';
-      vIn.placeholder = '值';
-      vIn.style.cssText = 'flex:1.4;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
-      var del = document.createElement('button');
-      del.className = 'tl__eyedrop';
-      del.textContent = '×';
-      del.style.cssText = 'width:22px;height:22px;font-size:12px;flex:0 0 auto;';
-      function commit() {
-        p.k = kIn.value.trim();
-        p.v = vIn.value.trim();
-        if (!p.k) { n.profile.splice(i, 1); }
-        saveTimelines();
-        renderEvolution(n);
-      }
-      kIn.addEventListener('change', commit);
-      vIn.addEventListener('change', commit);
-      del.addEventListener('click', function () { n.profile.splice(i, 1); saveTimelines(); renderProfile(n); renderEvolution(n); });
-      row.appendChild(kIn); row.appendChild(vIn); row.appendChild(del);
-      list.appendChild(row);
+    if (!list) return;
+    list.dataset.editing = '0';
+    var items = (Array.isArray(n.profile) ? n.profile : []).filter(function (p) { return p && p.k; });
+    list.innerHTML = items.length
+      ? items.map(function (p) {
+          return '<span class="pf-k">#' + escapeHtml(p.k) + '</span><span class="pf-v">：' + escapeHtml(p.v) + '</span>';
+        }).join('<br>')
+      : '<span class="pf-empty">（空档案 · 点击开始写）</span>';
+    list.style.cursor = 'text';
+  }
+  /* 档案编辑：显示区点击 → textarea 编辑纯文本（#方面：值 每行一个） */
+  function editProfile(n) {
+    var list = document.getElementById('d-profile-list');
+    if (!list || list.dataset.editing === '1') return;
+    list.dataset.editing = '1';
+    list.style.cursor = '';
+    var text = (Array.isArray(n.profile) ? n.profile : []).map(function (p) {
+      return p && p.k ? '#' + p.k + '：' + (p.v || '') : '';
+    }).filter(Boolean).join('\n');
+    list.innerHTML = '<textarea id="d-profile-edit" spellcheck="false" '
+      + 'style="width:100%;min-height:96px;resize:vertical;padding:8px 10px;font-family:var(--font-mono);font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">'
+      + escapeHtml(text) + '</textarea>';
+    var ta = document.getElementById('d-profile-edit');
+    ta.focus();
+    ta.addEventListener('blur', function () {
+      n.profile = parseProfileText(ta.value);
+      saveTimelines();
+      renderProfile(n);
+      renderEvolution(n);
     });
   }
   /* 事件影响渲染（选角色 + 差异点，可删） */
@@ -141,9 +152,15 @@
     profileAddBtn.addEventListener('click', function () {
       var n = openNodeEl ? openNodeEl._node : null;
       if (!n) return;
-      if (!Array.isArray(n.profile)) n.profile = [];
-      n.profile.push({ k: '', v: '' });
-      renderProfile(n);
+      editProfile(n);
+    });
+  }
+  /* 显示区点击也进入编辑 */
+  var profileListEl = document.getElementById('d-profile-list');
+  if (profileListEl) {
+    profileListEl.addEventListener('click', function () {
+      var n = openNodeEl ? openNodeEl._node : null;
+      if (n && n.type === 'plot') editProfile(n);
     });
   }
   if (impactsAddBtn) {
