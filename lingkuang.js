@@ -137,27 +137,33 @@
     });
   }
   migrateLoops();   /* seed 数据也迁移一次 */
-  /* 剧情线迁移：旧章节式 storyRanges（起终节点区间）→ 剧情线（nodeIds 节点集合，可跨时间/多对多） */
-  timelines.forEach(function (tl) {
-    if (!Array.isArray(tl.storylines) && Array.isArray(tl.storyRanges)) {
-      tl.storylines = tl.storyRanges.map(function (sr, i) {
-        var ids = [];
-        if (sr.startNodeId && sr.endNodeId && Array.isArray(tl.nodes)) {
-          var s = findNodeById(tl, sr.startNodeId), e = findNodeById(tl, sr.endNodeId);
-          if (s && e) {
-            var lo = Math.min(absYearOf(s, tl), absYearOf(e, tl));
-            var hi = Math.max(absYearOf(s, tl), absYearOf(e, tl));
-            tl.nodes.forEach(function (n) {
-              var y = absYearOf(n, tl);
-              if (y >= lo && y <= hi) ids.push(n.id);
-            });
+  /* 剧情线迁移：旧章节式 storyRanges（起终节点区间）→ 剧情线（nodeIds 节点集合，可跨时间/多对多）。
+     timelines 是对象映射 {id: tl}，须用 Object.keys 遍历。 */
+  function migrateStorylines() {
+    Object.keys(timelines).forEach(function (tlId) {
+      var tl = timelines[tlId];
+      if (!tl || typeof tl !== 'object') return;
+      if (!Array.isArray(tl.storylines) && Array.isArray(tl.storyRanges)) {
+        tl.storylines = tl.storyRanges.map(function (sr, i) {
+          var ids = [];
+          if (sr.startNodeId && sr.endNodeId && Array.isArray(tl.nodes)) {
+            var s = findNodeById(tl, sr.startNodeId), e = findNodeById(tl, sr.endNodeId);
+            if (s && e) {
+              var lo = Math.min(absYearOf(s, tl), absYearOf(e, tl));
+              var hi = Math.max(absYearOf(s, tl), absYearOf(e, tl));
+              tl.nodes.forEach(function (n) {
+                var y = absYearOf(n, tl);
+                if (y >= lo && y <= hi) ids.push(n.id);
+              });
+            }
           }
-        }
-        return { id: 'sl_' + Date.now() + '_' + i, name: sr.name || ('剧情线 ' + (i + 1)), nodeIds: ids };
-      });
-    }
-    if (!Array.isArray(tl.storylines)) tl.storylines = [];
-  });
+          return { id: 'sl_' + Date.now() + '_' + i, name: sr.name || ('剧情线 ' + (i + 1)), nodeIds: ids };
+        });
+      }
+      if (!Array.isArray(tl.storylines)) tl.storylines = [];
+    });
+  }
+  migrateStorylines();   /* seed 数据也迁移一次 */
   /* worldset container — each named world keeps its own slice */
   var worldsets = { '示例世界观': { timelines: timelines, order: order, docs: {} } };
   var activeWorldset = '示例世界观';
@@ -267,6 +273,7 @@
     var ws = worldsets[activeWorldset] || {};
     timelines = ws.timelines || {};
     migrateLoops();   /* upgrade legacy tl.loop → tl.loops on load */
+    migrateStorylines();   /* 旧章节式 storyRanges → 剧情线（对象映射遍历） */
     order = Array.isArray(ws.order) && ws.order.length ? ws.order : Object.keys(timelines);
     docs = ws.docs || docs;
     if (typeof refreshWorldsetBtn === 'function') refreshWorldsetBtn();

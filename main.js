@@ -13,7 +13,11 @@ app.setName('lingkuang');
 /* remove the application menu entirely — Alt must NOT summon a menu bar */
 Menu.setApplicationMenu(null);
 
-const DATA_FILE = () => path.join(app.getPath('userData'), 'worldbuilding.json');
+/* 数据文件路径。测试后门：LINGKUANG_TEST_DATA 环境变量指向测试数据文件时，
+   读写都走它（不碰 %APPDATA% 真实数据）——用于测试新功能/调试损坏数据。 */
+const DATA_FILE = () => process.env.LINGKUANG_TEST_DATA
+  ? process.env.LINGKUANG_TEST_DATA
+  : path.join(app.getPath('userData'), 'worldbuilding.json');
 const SETTINGS_FILE = () => path.join(app.getPath('userData'), 'settings.json');
 
 function createWindow() {
