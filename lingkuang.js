@@ -4894,18 +4894,26 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     /* 地图 */
     var ws3 = worldsets[activeWorldset];
     var maps = ws3 ? mapsOf(ws3) : [];
-    if (maps.length) {
-      folder('地图');
-      maps.forEach(function (m) {
-        file('🗺 ' + m.name, activeMap === m, function () {
-          activeNode = null;
-          activeDoc = '__untitled__';
-          editingEntityDoc = null;
-          activeMap = m;
-          renderEditor();
-        });
+    folder('地图');
+    maps.forEach(function (m) {
+      file('🗺 ' + m.name, activeMap === m, function () {
+        activeNode = null;
+        activeDoc = '__untitled__';
+        editingEntityDoc = null;
+        activeMap = m;
+        renderEditor();
       });
-    }
+    });
+    file('＋ 新建地图', false, function () {
+      prompt2('地图名称：').then(function (name) {
+        var m = newMap(name);
+        activeNode = null;
+        activeDoc = '__untitled__';
+        editingEntityDoc = null;
+        activeMap = m;
+        renderEditor();
+      });
+    });
     /* 笔记（docs） */
     folder('笔记');
     Object.keys(docs).forEach(function (k) {
