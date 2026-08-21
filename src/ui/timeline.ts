@@ -672,4 +672,67 @@ export function mountTimeline(
 
   renderExtraTools();
   renderLoops();
+
+  /* ══════════ 右键菜单（重新设计：工具已常驻，右键=快捷操作）══════════ */
+  let ctxMenu: HTMLElement | null = null;
+  function closeCtx() { ctxMenu?.remove(); ctxMenu = null; }
+  function showCtx(x: number, y: number, nodeId: string | null) {
+    closeCtx();
+    ctxMenu = document.createElement('div');
+    ctxMenu.style.cssText =
+      'position:fixed;z-index:1000;background:var(--chrome);color:var(--fg-inverse);border:1px solid var(--chrome-2);border-radius:var(--radius-sm);padding:4px;min-width:150px;box-shadow:0 6px 20px rgba(0,0,0,.5);';
+    const items: [string, () => void][] = nodeId
+      ? [
+          ['编辑', () => {
+            const tl = timeline();
+            const n = tl?.nodes.find((x) => x.id === nodeId);
+            if (n && onSelect) onSelect(n);
+          }],
+          ['复制节点', () => {
+            const tl = timeline();
+            const n = tl?.nodes.find((x) => x.id === nodeId);
+            if (tl && n) {
+              tl.nodes.push({ ...n, id: 'n' + Date.now(), title: n.title + ' 副本' });
+              render();
+            }
+          }],
+          ['删除节点', () => {
+            const tl = timeline();
+            if (tl) { tl.nodes = tl.nodes.filter((x) => x.id !== nodeId); render(); }
+          }],
+        ]
+      : [
+          ['新建节点', () => {
+            const tl = timeline();
+            if (!tl) return;
+            const toolHost = document.getElementById('lk-tool-host');
+            if (toolHost) renderNodeForm(store, toolHost, activeTimelineId(), tl.name);
+          }],
+          ['剧情线笔刷', () => { brushing = !brushing; renderStoryUI(); }],
+          ['新建循环', () => { renderExtraTools(); document.getElementById('lk-loop-new')?.dispatchEvent(new MouseEvent('click')); }],
+          ['fit 视图', () => fitAll()],
+        ];
+    items.forEach(([label, fn]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText =
+        'display:block;width:100%;text-align:left;background:none;border:none;color:var(--fg-inverse);font-size:12px;padding:5px 8px;cursor:pointer;border-radius:var(--radius-sm);';
+      b.addEventListener('mouseenter', () => (b.style.background = 'var(--chrome-2)'));
+      b.addEventListener('mouseleave', () => (b.style.background = 'none'));
+      b.addEventListener('click', () => { closeCtx(); fn(); });
+      ctxMenu!.appendChild(b);
+    });
+    document.body.appendChild(ctxMenu);
+    ctxMenu.style.left = Math.min(x, window.innerWidth - 170) + 'px';
+    ctxMenu.style.top = Math.min(y, window.innerHeight - items.length * 30 - 20) + 'px';
+  }
+  wrap.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const nodeEl = (e.target as HTMLElement).closest('.tl__n') as HTMLElement | null;
+    showCtx(e.clientX, e.clientY, nodeEl?.dataset.id ?? null);
+  });
+  document.addEventListener('click', (e) => {
+    if (ctxMenu && !ctxMenu.contains(e.target as Node)) closeCtx();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCtx(); });
 }
