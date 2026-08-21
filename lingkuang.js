@@ -4562,6 +4562,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   var ED_KEY = 'lingkuang-docs-v1';
   var docs = { '__untitled__': '# 未命名\n\n写点什么…' };
   var activeDoc = '__untitled__';
+  var activeNode = null;        /* 编辑器正在编辑的节点文稿（点击文件树节点时设置） */
+  var editingEntityDoc = null;  /* 正在编辑的实体 id（保存写回 e.doc） */
   var saveTimer = null;
 
   function loadDocs() {
@@ -4642,38 +4644,110 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     return s;
   }
 
+  /* 文件树（VS Code 式）：世界观 → 时间线 → 节点(.md)；实体；笔记 */
+  function renderFileTree() {
+    edFiles.innerHTML = '';
+    function folder(title) {
+      var f = document.createElement('div');
+      f.className = 'editor__folder';
+      f.textContent = title;
+      edFiles.appendChild(f);
+      return f;
+    }
+    function file(name, isActive, onClick) {
+      var b = document.createElement('button');
+      b.className = 'editor__file' + (isActive ? ' is-active' : '');
+      b.textContent = name;
+      b.title = name;
+      b.addEventListener('click', onClick);
+      edFiles.appendChild(b);
+    }
+    /* 世界观根 */
+    var wsTitle = document.createElement('div');
+    wsTitle.className = 'editor__folder editor__folder-root';
+    wsTitle.textContent = '🌍 ' + activeWorldset;
+    edFiles.appendChild(wsTitle);
+    /* 时间线 → 节点 */
+    folder('时间线');
+    order.forEach(function (tlId) {
+      var tl = timelines[tlId];
+      if (!tl) return;
+      var tlFolder = folder('▸ ' + (tl.name || tlId));
+      tlFolder.classList.add('editor__folder-tl');
+      (Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
+        file((n.title || '(未命名)') + '.md', activeNode === n, function () {
+          activeNode = n;
+          renderEditor();
+        });
+      });
+    });
+    /* 实体 */
+    var ws2 = worldsets[activeWorldset];
+    var ents = (ws2 && ws2.entities) ? ws2.entities : {};
+    var entKeys = Object.keys(ents);
+    if (entKeys.length) {
+      folder('实体');
+      entKeys.forEach(function (eid) {
+        var e = ents[eid];
+        file((e.name || '(未命名)') + '.md', false, function () {
+          /* 实体文稿在编辑器打开（e.doc；暂无则新建） */
+          activeNode = null;
+          if (!e.doc) e.doc = '# ' + (e.name || '') + '\n\n';
+          docs['__ent_' + eid] = e.doc;
+          activeDoc = '__ent_' + eid;
+          /* 保存时写回实体 —— 用标志位 */
+          editingEntityDoc = eid;
+          renderEditor();
+        });
+      });
+    }
+    /* 笔记（docs） */
+    folder('笔记');
+    Object.keys(docs).forEach(function (k) {
+      if (k === '__untitled__' || k.indexOf('__ent_') === 0) return;
+      file(k, activeNode === null && activeDoc === k, function () {
+        activeNode = null;
+        editingEntityDoc = null;
+        activeDoc = k;
+        renderEditor();
+      });
+    });
+    edFiles.scrollTop = 0;
+  }
   function renderEditor() {
-    var d = docs[activeDoc] || '';
-    edTitle.value = activeDoc === '__untitled__' ? '' : activeDoc;
+    var d = activeNode ? (activeNode.doc || '') : (docs[activeDoc] || '');
+    edTitle.value = activeNode ? activeNode.title : (activeDoc === '__untitled__' ? '' : activeDoc);
+    edTitle.readOnly = !!activeNode;   /* 节点名由时间线面板改 */
     edInput.value = d;
     edPreview.innerHTML = mdRender(d);
     edSaved.textContent = '已保存';
     edSaved.classList.remove('is-dirty');
-    /* file list */
-    edFiles.innerHTML = '';
-    Object.keys(docs).forEach(function (k) {
-      var b = document.createElement('button');
-      b.className = 'editor__file' + (k === activeDoc ? ' is-active' : '');
-      b.textContent = k;
-      b.title = k;
-      b.addEventListener('click', function () { activeDoc = k; renderEditor(); });
-      edFiles.appendChild(b);
-    });
-    /* make the list scrollable if long */
+    renderFileTree();
     edFiles.scrollTop = 0;
   }
   edInput.addEventListener('input', function () {
-    docs[activeDoc] = edInput.value;
+    if (activeNode) activeNode.doc = edInput.value;
+    else if (editingEntityDoc) {
+      var wsE = worldsets[activeWorldset];
+      if (wsE && wsE.entities && wsE.entities[editingEntityDoc]) wsE.entities[editingEntityDoc].doc = edInput.value;
+      else docs[activeDoc] = edInput.value;
+    } else docs[activeDoc] = edInput.value;
     edSaved.textContent = '未保存…';
     edSaved.classList.add('is-dirty');
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () { saveDocs(); edSaved.textContent = '已保存'; edSaved.classList.remove('is-dirty'); }, 600);
+    saveTimer = setTimeout(function () {
+      if (activeNode) saveTimelines();
+      else saveDocs();
+      edSaved.textContent = '已保存';
+      edSaved.classList.remove('is-dirty');
+    }, 600);
     /* live preview — throttle to every ~150ms via rAF */
     clearTimeout(edPreviewTimer);
     edPreviewTimer = setTimeout(function () { edPreview.innerHTML = mdRender(edInput.value); }, 120);
   });
   var edPreviewTimer = null;
   edTitle.addEventListener('change', function () {
+    if (activeNode) return;   /* 节点名由时间线面板改，编辑器只读 */
     var name = edTitle.value.trim();
     if (!name) return;
     if (name !== activeDoc && docs[name] !== undefined) { edTitle.value = activeDoc; return; }
@@ -4684,6 +4758,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     renderEditor();
   });
   edNew.addEventListener('click', function () {
+    activeNode = null;
+    editingEntityDoc = null;
     activeDoc = '__untitled__';
     docs['__untitled__'] = '';
     renderEditor();
