@@ -49,6 +49,12 @@ export function renderShell(store: Store, host: HTMLElement): void {
       /* 删除/改时间后刷新时间线（store 已变，subscribe 自动 render） */
     });
   });
+  /* 地图 pane 实装 */
+  const mapBody = document.getElementById('lk-pane-map')?.querySelector('.lk-pane-body') as HTMLElement;
+  if (mapBody) {
+    mapBody.classList.remove('lk-placeholder');
+    import('./map').then((m) => m.renderMap(store, mapBody));
+  }
   store.subscribe(() => {
     renderWorldTabs(store);
     renderTimelineTabs(store);
