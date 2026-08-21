@@ -3,7 +3,7 @@ import type { Store } from '../store/store';
 import { addNode } from '../store/actions';
 
 /** 时间文本解析（精简版，照抄 legacy parseTimeText）："312" / "312年7月" / "312年7月15日" */
-export function parseTimeText(text: string): { year: number; precision: 'year' | 'month' | 'day'; month?: number; day?: number } | null {
+export function parseTimeText(text: string): { year: number } | null {
   const t = String(text || '').trim();
   if (!t) return null;
   const m = t.match(/^(-?\d+)(?:年)?(?:\s*(\d{1,2})月)?(?:\s*(\d{1,2})日)?$/);
@@ -13,12 +13,11 @@ export function parseTimeText(text: string): { year: number; precision: 'year' |
   const day = m[3] ? parseInt(m[3], 10) : undefined;
   if (month !== undefined && (month < 1 || month > 12)) return null;
   if (day !== undefined && (day < 1 || day > 31)) return null;
-  return {
-    year,
-    precision: day !== undefined ? 'day' : month !== undefined ? 'month' : 'year',
-    month,
-    day,
-  };
+  /* 时间 = 小数年份（月/日折算，与旧数据一致） */
+  let y = year;
+  if (month) y += (month - 1) / 12;
+  if (day) y += (day - 1) / 360;
+  return { year: Math.round(y * 1000) / 1000 };
 }
 
 export function renderNodeForm(store: Store, host: HTMLElement, tlId: string, tlName: string): void {
@@ -63,9 +62,7 @@ export function renderNodeForm(store: Store, host: HTMLElement, tlId: string, tl
       title: t,
       type: type.value as 'event' | 'plot' | 'place',
       year: parsed?.year ?? 0,
-      precision: parsed?.precision ?? 'year',
-      month: parsed?.month,
-      day: parsed?.day,
+      precision: 'year',
     });
     host.innerHTML = '';
   }

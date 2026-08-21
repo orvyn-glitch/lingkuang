@@ -35,12 +35,18 @@ export function renderShell(store: Store, host: HTMLElement): void {
     </div>`;
 
   renderWorldTabs(store);
-  renderToolbar(store, host);
+  renderToolbar();
   renderTimelineTabs(store);
   const timelineBody = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-body') as HTMLElement;
   mountTimeline(store, timelineBody, (node) => {
     const toolHost = document.getElementById('lk-tool-host');
-    if (toolHost) renderNodeDetail(store, toolHost, node);
+    if (!toolHost) return;
+    const tlId = store.activeTimeline && currentWorld(store).timelines[store.activeTimeline]
+      ? store.activeTimeline
+      : (currentWorld(store).order ?? []).find((id) => currentWorld(store).timelines[id]) || Object.keys(currentWorld(store).timelines)[0];
+    renderNodeDetail(store, toolHost, node, tlId, () => {
+      /* 删除/改时间后刷新时间线（store 已变，subscribe 自动 render） */
+    });
   });
   store.subscribe(() => {
     renderWorldTabs(store);
@@ -98,12 +104,12 @@ function renderTimelineTabs(store: Store): void {
       const tl = id ? currentWorld(store).timelines[id] : undefined;
       if (!tl) return;
       const toolHost = document.getElementById('lk-tool-host');
-      if (toolHost) renderNodeForm(store, toolHost, id, tl.name);
+      if (toolHost && id) renderNodeForm(store, toolHost, id, tl.name);
     });
   }
 }
 
-function renderToolbar(store: Store, host: HTMLElement): void {
+function renderToolbar(): void {
   const bar = document.getElementById('lk-toolbar');
   const toolHost = document.getElementById('lk-tool-host');
   if (!bar || !toolHost) return;

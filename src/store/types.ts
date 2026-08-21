@@ -9,7 +9,7 @@ export interface TimelineNode {
   title: string;
   year: number;                 // 内部小数年份（nodeToTime）
   precision: TimePrecision;
-  type: 'event' | 'plot' | 'year' | 'loop-boundary';
+  type: 'event' | 'plot' | 'place' | 'year' | 'loop-boundary';
   desc?: string;
   doc?: string;                 // 节点本体（Markdown，frontmatter 存元数据）
   tag?: string;

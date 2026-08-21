@@ -1,13 +1,7 @@
 /** 灵框 · actions（通过 store.update 修改数据——视图不直接碰 data） */
 import type { Store } from './store';
 import { currentWorld } from './store';
-import type { Timeline, TimelineNode, Entity, MapData } from './types';
-
-function ensureTimelines(store: Store) {
-  const ws = currentWorld(store);
-  if (!ws.timelines) ws.timelines = {};
-  if (!ws.order) ws.order = [];
-}
+import type { Timeline, TimelineNode, Entity } from './types';
 
 export function addTimeline(store: Store, name: string): string {
   const id = 'tl' + Date.now();

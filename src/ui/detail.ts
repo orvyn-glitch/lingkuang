@@ -1,7 +1,7 @@
 /** 节点详情面板（TS 版）——文稿本体渲染：字段卡片 + 正文；逻辑照抄 legacy showDetail/parseDoc */
 import type { Store } from '../store/store';
-import { currentWorld } from '../store/store';
 import type { TimelineNode } from '../store/types';
+import { saveNodeDoc } from '../store/actions';
 
 interface ParsedDoc {
   fields: { k: string; v: string }[];
@@ -27,15 +27,29 @@ export function parseDoc(doc: string | undefined): ParsedDoc {
 
 export function fmtNodeTime(n: TimelineNode): string {
   const y = Math.round(n.year * 100) / 100;
-  if (n.precision === 'year') return `${y}年`;
-  const m = n.month ? `${n.month}月` : '';
-  const d = n.day ? `${n.day}日` : '';
-  const h = n.hour !== undefined ? `${n.hour}时` : '';
-  const mi = n.minute !== undefined ? `${n.minute}分` : '';
-  return `${y}年${m}${d}${h}${mi}`;
+  const { month, day } = partsFromYear(n.year);
+  const m = month ? `${month}月` : '';
+  const d = day && month ? `${day}日` : '';
+  return `${y}年${m}${d}`;
 }
 
-export function renderNodeDetail(store: Store, host: HTMLElement, node: TimelineNode): void {
+/** 从小数年份拆出月/日（旧数据时间 = year 小数，非独立字段） */
+function partsFromYear(y: number): { month?: number; day?: number } {
+  const frac = y - Math.floor(y);
+  if (frac <= 0.001) return {};
+  const month = Math.floor(frac * 12) + 1;
+  const rem = (frac * 12 - (month - 1)) * 30;
+  const day = Math.floor(rem + 1e-6) + 1;
+  return { month: month > 12 ? undefined : month, day };
+}
+
+export function renderNodeDetail(
+  store: Store,
+  host: HTMLElement,
+  node: TimelineNode,
+  tlId?: string,
+  onChanged?: () => void
+): void {
   const { fields, body } = parseDoc(node.doc);
   const timeText = fields.find((f) => f.k === '时间')?.v ?? fmtNodeTime(node);
 
@@ -45,10 +59,35 @@ export function renderNodeDetail(store: Store, host: HTMLElement, node: Timeline
         <span style="font-size:15px;font-weight:600;color:var(--fg);">${node.title}</span>
         <span style="font-size:var(--text-xs);color:var(--fg-2);font-family:var(--font-mono);">${timeText}</span>
       </div>
-      <div style="font-size:var(--text-xs);color:var(--fg-2);">${node.type} · 详情（编辑后续接）</div>
+      <div style="font-size:var(--text-xs);color:var(--fg-2);">${node.type}</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:var(--text-xs);color:var(--fg-2);">时间</span>
+        <input id="d-year" type="number" step="any" value="${node.year}" style="width:90px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:3px 6px;font-size:var(--text-sm);outline:none;"/>
+        <span style="font-size:var(--text-xs);color:var(--fg-2);">（小数=月日，如 312.5 = 6月）</span>
+        <button id="d-del" style="margin-left:auto;background:transparent;border:1px solid #c0392b;color:#c0392b;border-radius:var(--radius-sm);padding:3px 10px;font-size:var(--text-xs);cursor:pointer;">删除</button>
+      </div>
       <div id="d-fields" style="display:flex;flex-direction:column;gap:6px;"></div>
       <div style="font-size:var(--text-sm);color:var(--fg);line-height:1.6;white-space:pre-wrap;">${escapeHtml(body || '(空正文)')}</div>
     </div>`;
+
+  const yearInput = host.querySelector('#d-year') as HTMLInputElement;
+  yearInput.addEventListener('change', () => {
+    const v = parseFloat(yearInput.value);
+    if (Number.isFinite(v)) {
+      node.year = v;
+      if (tlId) saveNodeDoc(store, tlId, node.id, node.doc ?? '');
+      if (onChanged) onChanged();
+    }
+  });
+  host.querySelector('#d-del')?.addEventListener('click', () => {
+    if (!tlId) return;
+    store.update((d) => {
+      const tl = d.worldsets[store.activeWorld]?.timelines[tlId];
+      if (tl) tl.nodes = tl.nodes.filter((x) => x.id !== node.id);
+    });
+    host.innerHTML = '';
+    if (onChanged) onChanged();
+  });
 
   const fieldsBox = host.querySelector('#d-fields') as HTMLElement;
   fields.forEach((f) => {

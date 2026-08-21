@@ -4,7 +4,7 @@
 import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { getTimeline, setTimeCursor, saveNodeDoc } from '../store/actions';
-import type { Timeline, TimelineNode, Storyline } from '../store/types';
+import type { Timeline, TimelineNode, Storyline, Loop } from '../store/types';
 
 interface View {
   panX: number;
@@ -77,7 +77,7 @@ export function mountTimeline(
 
   /* ── 渲染节点 ── */
   let selectedId: string | null = null;
-  function render() {
+  function renderBase() {
     const tl = timeline();
     if (!tl) {
       track.innerHTML = '<div style="padding:20px;font-size:var(--text-sm);color:var(--fg-2);">无时间线 · 待建</div>';
@@ -108,7 +108,7 @@ export function mountTimeline(
     updateCursor();
   }
 
-  /* ── 时间指针 ── */
+  let render: () => void = renderBase;   /* 可被剧情线/循环包装重赋 */
   function updateCursor() {
     const ws = currentWorld(store);
     const t = ws.timeCursor;
@@ -149,7 +149,7 @@ export function mountTimeline(
     const nodeEl = (e.target as HTMLElement).closest('.tl-node') as HTMLElement | null;
     if (nodeEl) {
       /* 节点：点击选中 / 拖动改时间 */
-      nodeDragId = nodeEl.dataset.id;
+      nodeDragId = nodeEl.dataset.id ?? null;
       nodeDragMoved = false;
       lastX = e.clientX;
       return;
@@ -190,7 +190,7 @@ export function mountTimeline(
       setTimeCursor(store, xToTime(mx));
     }
   });
-  window.addEventListener('pointerup', (e) => {
+  window.addEventListener('pointerup', () => {
     const wasNodeClick = nodeDragId && !nodeDragMoved;
     if (wasNodeClick) {
       const n = timeline()?.nodes.find((x) => x.id === nodeDragId);
@@ -408,7 +408,7 @@ export function mountTimeline(
     const tl = timeline();
     if (tl && storyMode === 'focus' && activeLine()) {
       const nodes = tl.nodes.filter((n) => inLine(n.year));
-      track.innerHTML = lineHtmlOf(tl, nodes);
+      track.innerHTML = lineHtmlOf(nodes);
       renderScale();
       updateCursor();
     } else {
@@ -417,7 +417,7 @@ export function mountTimeline(
     renderStoryOverlay();
   };
 
-  function lineHtmlOf(tl: Timeline, nodes: TimelineNode[]): string {
+  function lineHtmlOf(nodes: TimelineNode[]): string {
     let html = '';
     if (nodes.length) {
       const yrs = nodes.map((n) => n.year);
@@ -436,4 +436,202 @@ export function mountTimeline(
   }
 
   renderStoryUI();
+
+  /* ══════════ 循环系统（循环框 + 幽灵节点 + 面板）══════════ */
+  let loopPanelId: string | null = null;    // 当前打开面板的循环
+  let nonlinearMode = false;                // 非线性（序列均匀横排）
+
+  function loopsOf(): Loop[] {
+    const tl = timeline();
+    return (tl && Array.isArray(tl.loops) ? tl.loops : []) as Loop[];
+  }
+  function loopById(id: string): Loop | undefined {
+    return loopsOf().find((l) => l.id === id);
+  }
+  function findNodeById(nid: string | undefined): TimelineNode | undefined {
+    const tl = timeline();
+    return nid ? tl?.nodes.find((n) => n.id === nid) : undefined;
+  }
+  function loopRange(L: Loop): { lo: number; hi: number; span: number } | null {
+    const s = findNodeById(L.startId), e = findNodeById(L.endId);
+    if (!s || !e) return null;
+    const lo = Math.min(s.year, e.year), hi = Math.max(s.year, e.year);
+    return { lo, hi, span: hi - lo };
+  }
+
+  function renderLoops() {
+    let frames = wrap.querySelector('#lk-loop-frames') as HTMLElement | null;
+    if (!frames) {
+      frames = document.createElement('div');
+      frames.id = 'lk-loop-frames';
+      frames.style.cssText = 'position:absolute;top:26px;left:0;right:0;bottom:0;z-index:1;pointer-events:none;';
+      wrap.appendChild(frames);
+    }
+    frames.innerHTML = '';
+    const tl = timeline();
+    if (!tl) return;
+    loopsOf().forEach((L) => {
+      const r = loopRange(L);
+      if (!r) return;
+      const x0 = timeToX(r.lo), x1 = timeToX(r.hi);
+      frames.innerHTML += `<div class="tl-loop-frame" data-loop-id="${L.id}" style="position:absolute;top:0;left:${x0}px;width:${Math.max(2, x1 - x0)}px;height:100%;border:1px dashed rgba(158,194,98,.4);border-top:none;border-bottom:none;pointer-events:auto;cursor:pointer;" title="${L.name}（${L.count} 次）"></div>`;
+      /* 幽灵节点：范围内节点复制 count-1 次，偏移 span */
+      if (L.count > 1) {
+        const inner = tl.nodes.filter((n) => n.year >= r.lo && n.year <= r.hi);
+        for (let c = 1; c < L.count; c++) {
+          inner.forEach((n) => {
+            const x = timeToX(n.year + c * r.span);
+            frames!.innerHTML += `<div style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);opacity:.35;pointer-events:none;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--fg);border:1px dashed var(--accent);"></div>
+              <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${n.title} ²</div>
+            </div>`;
+          });
+        }
+      }
+    });
+    /* 双击循环框 → 面板（右侧） */
+    frames.querySelectorAll('.tl-loop-frame').forEach((el) => {
+      el.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        const lid = (el as HTMLElement).dataset.loopId!;
+        loopPanelId = lid;
+        renderLoopPanel();
+      });
+    });
+  }
+
+  function renderLoopPanel() {
+    const L = loopPanelId ? loopById(loopPanelId) : undefined;
+    const toolHost = document.getElementById('lk-tool-host');
+    if (!toolHost) return;
+    if (!L) { toolHost.innerHTML = ''; return; }
+    const r = loopRange(L);
+    toolHost.innerHTML = `
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:15px;font-weight:600;color:var(--fg);">循环 · ${L.name}</div>
+        <div style="font-size:var(--text-xs);color:var(--fg-2);">${r ? `${r.lo}年 → ${r.hi}年（跨度 ${r.span} 年）` : '起终节点缺失'}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:var(--text-xs);color:var(--fg-2);">循环次数</span>
+          <button id="lp-minus" style="width:24px;height:24px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);cursor:pointer;">−</button>
+          <span id="lp-count" style="font-size:var(--text-sm);color:var(--accent);min-width:24px;text-align:center;">${L.count ?? 1}</span>
+          <button id="lp-plus" style="width:24px;height:24px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);cursor:pointer;">＋</button>
+        </div>
+        <button id="lp-del" style="background:transparent;border:1px solid #c0392b;color:#c0392b;border-radius:var(--radius-sm);padding:6px;font-size:var(--text-sm);cursor:pointer;">删除循环</button>
+        <div style="font-size:var(--text-xs);color:var(--fg-2);">提示：双击时间线上的循环框打开此面板</div>
+      </div>`;
+    toolHost.querySelector('#lp-minus')?.addEventListener('click', () => {
+      if (!L) return;
+      L.count = Math.max(1, (L.count ?? 1) - 1);
+      renderLoopPanel(); renderLoops();
+    });
+    toolHost.querySelector('#lp-plus')?.addEventListener('click', () => {
+      if (!L) return;
+      L.count = Math.min(20, (L.count ?? 1) + 1);
+      renderLoopPanel(); renderLoops();
+    });
+    toolHost.querySelector('#lp-del')?.addEventListener('click', () => {
+      const tl = timeline();
+      if (!tl || !L) return;
+      tl.loops = (tl.loops || []).filter((x) => x.id !== L.id);
+      loopPanelId = null;
+      toolHost.innerHTML = '';
+      renderLoops();
+    });
+  }
+
+  /* 沙盘头加「＋循环」「非线性」常驻工具 */
+  function renderExtraTools() {
+    if (!TL_HEAD) return;
+    let ext: HTMLElement | null = TL_HEAD.querySelector('#lk-extras');
+    if (ext) ext.remove();
+    ext = document.createElement('span');
+    ext.id = 'lk-extras';
+    ext.style.cssText = 'display:flex;gap:4px;align-items:center;';    ext.innerHTML = `
+      <button class="lk-tl-tab is-new" id="lk-loop-new" title="新建循环（选起终节点）">＋循环</button>
+      <button class="lk-tl-tab${nonlinearMode ? ' is-active' : ''}" id="lk-nonlinear" title="非线性：按序列顺序均匀排列">非线性</button>`;
+    TL_HEAD.appendChild(ext);
+    ext.querySelector('#lk-loop-new')?.addEventListener('click', () => {
+      const tl = timeline();
+      if (!tl) return;
+      const toolHost = document.getElementById('lk-tool-host');
+      if (!toolHost) return;
+      const opts = tl.nodes
+        .map((n) => `<option value="${n.id}">${n.year} · ${n.title}</option>`)
+        .join('');
+      toolHost.innerHTML = `
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:15px;font-weight:600;color:var(--fg);">新建循环 · ${tl.name}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:var(--text-xs);color:var(--fg-2);">名称</label>
+            <input id="lp-name" type="text" placeholder="潮汐轮回" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;"/>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:var(--text-xs);color:var(--fg-2);">起始节点</label>
+            <select id="lp-start" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;">${opts}</select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:var(--text-xs);color:var(--fg-2);">结束节点</label>
+            <select id="lp-end" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;">${opts}</select>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="lp-ok" style="flex:1;background:var(--accent);color:var(--accent-on);border:none;border-radius:var(--radius-sm);padding:7px;font-size:var(--text-sm);cursor:pointer;">创建</button>
+            <button id="lp-cancel" style="flex:1;background:var(--surface-2);color:var(--fg-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px;font-size:var(--text-sm);cursor:pointer;">取消</button>
+          </div>
+        </div>`;
+      toolHost.querySelector('#lp-ok')?.addEventListener('click', () => {
+        const name = (toolHost.querySelector('#lp-name') as HTMLInputElement).value.trim() || `循环 ${loopsOf().length + 1}`;
+        const startId = (toolHost.querySelector('#lp-start') as HTMLSelectElement).value;
+        const endId = (toolHost.querySelector('#lp-end') as HTMLSelectElement).value;
+        if (!startId || !endId) return;
+        const tl2 = timeline();
+        if (!tl2) return;
+        if (!tl2.loops) tl2.loops = [];
+        tl2.loops.push({ id: 'lp' + Date.now(), name, startId, endId, count: 2 });
+        toolHost.innerHTML = '';
+        renderLoops();
+      });
+      toolHost.querySelector('#lp-cancel')?.addEventListener('click', () => (toolHost.innerHTML = ''));
+    });
+    ext.querySelector('#lk-nonlinear')?.addEventListener('click', () => {
+      nonlinearMode = !nonlinearMode;
+      renderExtraTools();
+      render();
+    });
+  }
+
+  /* ══════════ 非线性模式（按序列顺序均匀横排）══════════ */
+  function renderNonlinear() {
+    const tl = timeline();
+    if (!tl || !nonlinearMode) return;
+    const nodes = tl.nodes;
+    if (!nodes.length) return;
+    const n = nodes.length;
+    const pitch = Math.max(24, (wrap.clientWidth - 100) / n);
+    track.innerHTML =
+      `<div class="tl-line" style="position:absolute;top:17px;left:0;right:0;height:1px;background:var(--border);pointer-events:none;"></div>` +
+      nodes
+        .map((node, i) => {
+          const x = 50 + i * pitch;
+          const sel = node.id === selectedId;
+          return `<div class="tl-node${sel ? ' is-sel' : ''}" data-id="${node.id}" style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translateX(-50%);${sel ? 'z-index:3;' : ''}">
+            <div style="width:10px;height:10px;border-radius:50%;background:${node.type === 'event' ? 'var(--fg)' : 'var(--accent)'};${sel ? 'outline:2px solid var(--accent);outline-offset:2px;' : ''}"></div>
+            <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${node.title}</div>
+            <div style="font-size:8px;color:var(--fg-2);">${node.year}</div>
+          </div>`;
+        })
+        .join('');
+    renderScale();
+    updateCursor();
+  }
+
+  /* render 统一入口：非线性 > 剧情线聚焦 > 常规 */
+  const baseRender = render;
+  render = function () {
+    if (nonlinearMode) { renderNonlinear(); renderLoops(); renderStoryOverlay(); return; }
+    baseRender();
+    renderLoops();
+  };
+
+  renderExtraTools();
+  renderLoops();
 }
