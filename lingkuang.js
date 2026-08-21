@@ -86,47 +86,52 @@
       entityList.appendChild(row);
     });
   }
-  /* 实体表单：按类型字段渲染（text / longtext） */
+  /* 实体文本解析：#字段：值 每行一个（自动识别字段，容忍半角冒号/空行） */
+  function parseEntityText(text) {
+    var data = {};
+    String(text).split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line) return;
+      var m = line.match(/^#?\s*([^：:]+)[：:]\s*(.*)$/);
+      if (m && m[1].trim()) data[m[1].trim()] = m[2].trim();
+    });
+    return data;
+  }
+  /* 实体表单：名字 + 档案文本块（#字段：值，自动识别）+ 描述 */
   function openEntityForm(e) {
     editingEntity = e.id;
     var ws = worldsets[activeWorldset];
     var types = entityTypesOf(ws);
     var t = types[e.type] || { fields: [] };
     entityForm.style.display = '';
-    var html = '<div class="tl__modal-field"><label>名字</label><input id="ent-name" value="' + escapeHtml(e.name || '') + '" /></div>';
+    /* 预填 # 行：类型字段顺序优先，其次已有 data 的其他键 */
+    var lines = [];
+    var used = {};
     (t.fields || []).forEach(function (f) {
-      var v = (e.data && e.data[f.key]) || '';
-      html += '<div class="tl__modal-field"><label>' + escapeHtml(f.key) + '</label>';
-      if (f.type === 'longtext') {
-        html += '<textarea id="ent-f-' + escapeHtml(f.key) + '" spellcheck="false" style="width:100%;min-height:60px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(v) + '</textarea>';
-      } else if (f.type === 'number') {
-        html += '<input type="number" step="any" id="ent-f-' + escapeHtml(f.key) + '" value="' + escapeHtml(v) + '" />';
-      } else if (f.type === 'boolean') {
-        html += '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--fg-2);"><input type="checkbox" id="ent-f-' + escapeHtml(f.key) + '"' + (v === true || v === 'true' ? ' checked' : '') + ' /> 是</label>';
-      } else {
-        html += '<input type="text" id="ent-f-' + escapeHtml(f.key) + '" value="' + escapeHtml(v) + '" />';
-      }
-      html += '</div>';
+      var v = (e.data && e.data[f.key] !== undefined && e.data[f.key] !== '') ? e.data[f.key] : '';
+      lines.push('#' + f.key + '：' + v);
+      used[f.key] = true;
     });
+    if (e.data) {
+      Object.keys(e.data).forEach(function (k) {
+        if (!used[k] && e.data[k] !== '') lines.push('#' + k + '：' + e.data[k]);
+      });
+    }
+    var html = '<div class="tl__modal-field"><label>名字</label><input id="ent-name" value="' + escapeHtml(e.name || '') + '" /></div>';
+    html += '<div class="tl__modal-field"><label>档案（#字段：值 每行一个，自动识别）</label>'
+      + '<textarea id="ent-data" spellcheck="false" style="width:100%;min-height:96px;resize:vertical;padding:7px 10px;font-family:var(--font-mono);font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">'
+      + escapeHtml(lines.join('\n')) + '</textarea></div>';
     html += '<div class="tl__modal-field"><label>描述</label><textarea id="ent-desc" spellcheck="false" style="width:100%;min-height:48px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(e.desc || '') + '</textarea></div>';
     html += '<button class="btn btn--primary" id="ent-save" style="width:100%;">保存实体</button>';
     entityForm.innerHTML = html;
     var saveBtn = document.getElementById('ent-save');
     saveBtn.addEventListener('click', function () {
       e.name = document.getElementById('ent-name').value.trim() || e.name;
-      if (!e.data) e.data = {};
-      (t.fields || []).forEach(function (f) {
-        var inp = document.getElementById('ent-f-' + f.key);
-        if (!inp) return;
-        if (f.type === 'number') e.data[f.key] = parseFloat(inp.value) || 0;
-        else if (f.type === 'boolean') e.data[f.key] = inp.checked;
-        else e.data[f.key] = inp.value;
-      });
+      e.data = parseEntityText(document.getElementById('ent-data').value);
       e.desc = document.getElementById('ent-desc').value;
       saveTimelines();
       entityError.style.cssText = 'display:;color:var(--accent);margin-top:6px;font-size:var(--text-sm);';
       entityError.textContent = '已保存：' + (e.name || '(未命名)');
-      /* 收起表单，刷新列表 */
       entityForm.style.display = 'none';
       renderEntityList();
       setTimeout(function () { entityError.style.display = 'none'; }, 1800);
