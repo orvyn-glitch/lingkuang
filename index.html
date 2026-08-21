@@ -1029,6 +1029,23 @@ body.is-idle .veil__grain {
 }
 .tl__n.is-inline::before { background: var(--accent) !important; }
 /* 画线模式浮条（底部居中） */
+/* 剧情线聚焦：范围外区域截断遮罩（世界历史被切掉，只剩剧情范围可见） */
+#tl-range-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+.tl__mask-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(110, 108, 100, 0.38);
+  backdrop-filter: blur(1px);
+}
 .tl__line-bar {
   position: absolute;
   left: 50%;
@@ -2955,6 +2972,7 @@ body.is-idle .veil__grain {
 
       <!-- horizontal stage -->
       <div class="tl__stage" id="tl-stage">
+        <div id="tl-range-mask" style="display:none"><div class="tl__mask-side"></div><div class="tl__mask-side"></div></div>
         <div class="tl__line-bar" id="tl-line-bar" style="display:none">
           <span class="tl__line-count" id="tl-line-count">已选 0 段</span>
           <span class="tl__line-hint">拖拽刷选加段 / 橡皮擦擦出 gap · Enter 完成 · Esc 取消</span>

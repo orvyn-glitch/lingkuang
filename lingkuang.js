@@ -2998,6 +2998,25 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       axes[i].style.width = w + 'px';
     }
   }
+  /* 聚焦剧情线：范围外区域截断遮罩（视口坐标，随 pan 跟随） */
+  function updateRangeMask() {
+    var mask = document.getElementById('tl-range-mask');
+    if (!mask) return;
+    var focusRange = activeStoryRange();
+    var tl = timelines[activeId];
+    var sp = focusRange ? storyRangeSpan(tl, focusRange) : null;
+    if (!sp || storyMode !== 'focus' || multiMode) { mask.style.display = 'none'; return; }
+    mask.style.display = '';
+    var rect = stage.getBoundingClientRect();
+    var xLo = timeToX(sp.lo) + panX;   /* 范围起止的视口 x */
+    var xHi = timeToX(sp.hi) + panX;
+    var sides = mask.children;
+    sides[0].style.left = '0px';
+    sides[0].style.width = Math.max(0, xLo) + 'px';
+    sides[1].style.left = Math.max(0, xHi) + 'px';
+    sides[1].style.width = Math.max(0, rect.width - Math.max(0, xHi)) + 'px';
+  }
+
   function applyPan() {
     clampPan();
     /* horizontal camera rides the GPU transform (like panY) — node left
@@ -3008,12 +3027,14 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
        rAF would overwrite them with stale destinations */
     targetX = panX; targetY = panY;
     if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
+    updateRangeMask();   /* 剧情线聚焦遮罩跟随平移 */
   }
   /* direct pan assignments (zoom/snap/mode) must also reset the glide target,
      else a running rAF would overwrite them with stale destinations */
   function commitPan() {
     targetX = panX; targetY = panY;
     if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
+    updateRangeMask();
   }
 
   /* camera glide: wheel only moves the target; rAF eases pan toward it */
