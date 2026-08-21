@@ -1045,6 +1045,58 @@ body.is-idle .veil__grain {
   bottom: 0;
   background: rgba(110, 108, 100, 0.30);   /* 深色遮罩（暂定，颜色/透明度与 UI 总设计一起调） */
 }
+/* 时间指针：全视图的"当前时间"（已发生/未发生分界），可拖动 */
+.tl__time-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+.tl__time-cursor-line {
+  position: absolute;
+  top: 34px;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+.tl__time-cursor-handle {
+  position: absolute;
+  top: 6px;
+  left: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--chrome);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  cursor: ew-resize;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(15, 15, 17, 0.4);
+  user-select: none;
+}
+.tl__time-cursor-handle:hover { background: var(--chrome-2); }
+.tl__time-cursor-time {
+  position: absolute;
+  top: 30px;
+  left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(15, 15, 17, 0.8);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+/* 时间指针之后（未发生）的节点：半透明淡化 */
+.tl__n.is-future { opacity: 0.40; }
+.tl__n.is-future .name { opacity: 0.7; }
 .tl__line-bar {
   position: absolute;
   left: 50%;
@@ -2962,6 +3014,7 @@ body.is-idle .veil__grain {
         <button class="tl__multi-toggle" id="tl-nonlinear" title="事件序列视图（节点等距排列）">序列</button>
         <button class="tl__multi-toggle" id="tl-multi" title="并列显示所有时间线">并列</button>
         <button class="tl__multi-toggle" id="tl-story-btn" title="聚焦剧情线 / 显示世界历史">剧情</button>
+        <button class="tl__multi-toggle" id="tl-cursor-btn" title="时间指针：当前时间（已发生/未发生分界），可拖动">指针</button>
         <button class="tl__multi-toggle" id="tl-brush-btn" title="画线模式：拖拽框选节点累积成剧情线">画线</button>
         <select class="tl__story-select" id="tl-story-select" style="display:none"></select>
         <div class="tl__multi-mask" id="tl-multi-mask"></div>
@@ -2971,6 +3024,11 @@ body.is-idle .veil__grain {
 
       <!-- horizontal stage -->
       <div class="tl__stage" id="tl-stage">
+        <div class="tl__time-cursor" id="tl-time-cursor" style="display:none">
+          <div class="tl__time-cursor-handle">▾</div>
+          <div class="tl__time-cursor-line"></div>
+          <div class="tl__time-cursor-time"></div>
+        </div>
         <div id="tl-range-mask" style="display:none"><div class="tl__mask-side"></div><div class="tl__mask-side"></div></div>
         <div class="tl__line-bar" id="tl-line-bar" style="display:none">
           <span class="tl__line-count" id="tl-line-count">已选 0 段</span>

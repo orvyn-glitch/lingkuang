@@ -341,6 +341,7 @@
     timelines = ws.timelines || {};
     migrateLoops();   /* upgrade legacy tl.loop → tl.loops on load */
     migrateStorylines();   /* 旧章节式 storyRanges → 剧情线（对象映射遍历） */
+    if (typeof loadTimeCursor === 'function') loadTimeCursor();   /* 加载当前世界观的指针 */
     order = Array.isArray(ws.order) && ws.order.length ? ws.order : Object.keys(timelines);
     docs = ws.docs || docs;
     if (typeof refreshWorldsetBtn === 'function') refreshWorldsetBtn();
@@ -546,6 +547,94 @@
 var nonlinearMode = false;   /* event-sequence view: nodes at FIXED pitch */
 var seqPitch = 96;           /* px between consecutive events (nonlinear) */
 
+  /* ── 时间指针：全视图的"当前时间"（已发生/未发生分界，可拖动）── */
+  var timeCursor = null;              /* 当前世界观的时间指针（小数年份；null=隐藏） */
+  var timeCursorEl = document.getElementById('tl-time-cursor');
+  var cursorBtn = document.getElementById('tl-cursor-btn');
+  function loadTimeCursor() {
+    var ws = worldsets[activeWorldset];
+    timeCursor = (ws && isFinite(ws.timeCursor)) ? ws.timeCursor : null;
+  }
+  function saveTimeCursor() {
+    var ws = worldsets[activeWorldset];
+    if (!ws) { worldsets[activeWorldset] = ws = { timelines: timelines, order: order, docs: docs }; }
+    if (timeCursor === null) delete ws.timeCursor;
+    else ws.timeCursor = timeCursor;
+    saveTimelines();
+  }
+  /* 指针视口位置（随 pan 跟随） */
+  function updateTimeCursorPos() {
+    if (!timeCursorEl) return;
+    if (timeCursor === null) { timeCursorEl.style.display = 'none'; return; }
+    timeCursorEl.style.display = '';
+    var x = timeToX(timeCursor) + panX;
+    timeCursorEl.style.left = x + 'px';
+    var tEl = timeCursorEl.querySelector('.tl__time-cursor-time');
+    if (tEl) tEl.textContent = fmtScale(Math.round(timeCursor * 100) / 100);
+  }
+  /* 节点"已发生/未发生"视觉：指针之后 is-future 淡化 */
+  function applyTimeCursorState() {
+    var tl = timelines[activeId];
+    if (!tl || timeCursor === null) {
+      nodesEl.querySelectorAll('.tl__n.is-future').forEach(function (el) { el.classList.remove('is-future'); });
+      return;
+    }
+    nodesEl.querySelectorAll('.tl__n').forEach(function (el) {
+      if (!el._node) return;
+      var isFuture = absYearOf(el._node, tl) > timeCursor;
+      el.classList.toggle('is-future', isFuture);
+    });
+  }
+  if (cursorBtn) {
+    cursorBtn.addEventListener('click', function () {
+      if (timeCursor === null) {
+        /* 开启：默认放在当前时间线中间 */
+        var tl = timelines[activeId];
+        var lo = Infinity, hi = -Infinity;
+        (tl && Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
+          var y = absYearOf(n, tl);
+          if (y < lo) lo = y;
+          if (y > hi) hi = y;
+        });
+        timeCursor = isFinite(lo) ? (lo + hi) / 2 : 0;
+        cursorBtn.classList.add('is-on');
+      } else {
+        timeCursor = null;
+        cursorBtn.classList.remove('is-on');
+      }
+      updateTimeCursorPos();
+      applyTimeCursorState();
+      saveTimeCursor();
+    });
+  }
+  /* 拖动手柄改指针时间 */
+  var cursorDragging = false;
+  if (timeCursorEl) {
+    var handleEl = timeCursorEl.querySelector('.tl__time-cursor-handle');
+    if (handleEl) {
+      handleEl.addEventListener('pointerdown', function (e) {
+        if (timeCursor === null) return;
+        cursorDragging = true;
+        e.stopPropagation();
+        e.preventDefault();
+        if (handleEl.setPointerCapture) handleEl.setPointerCapture(e.pointerId);
+      });
+      handleEl.addEventListener('pointermove', function (e) {
+        if (!cursorDragging) return;
+        var rect = stage.getBoundingClientRect();
+        var mx = e.clientX - rect.left;
+        timeCursor = xToTime(mx - panX);
+        updateTimeCursorPos();
+        applyTimeCursorState();
+      });
+      handleEl.addEventListener('pointerup', function () {
+        if (!cursorDragging) return;
+        cursorDragging = false;
+        saveTimeCursor();
+      });
+    }
+  }
+
   /* ── 剧情线（主角线/女主线等平行叙事线）：多段时间段（segments），gap 期间与线无关 ──
      segment = { start, end }（小数年份，精确时间）；旧单段 {startYear,endYear} 自动迁移 */
   var storyMode = 'focus';        /* 'focus' 只看剧情 / 'full' 显示世界历史 */
@@ -654,6 +743,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     track.style.height = Math.max(H, stage.clientHeight) + 'px';
     refreshPanBounds();
     focusTrackTop();
+    if (typeof applyTimeCursorState === 'function') applyTimeCursorState();   /* 时间指针：已发生/未发生视觉 */
+    if (typeof updateTimeCursorPos === 'function') updateTimeCursorPos();
 
     var hasNodes = allNodes.length > 0;
     emptyEl.style.display = hasNodes ? 'none' : 'grid';
@@ -3028,6 +3119,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     targetX = panX; targetY = panY;
     if (panRaf) { cancelAnimationFrame(panRaf); panRaf = null; }
     updateRangeMask();   /* 剧情线聚焦遮罩跟随平移 */
+    updateTimeCursorPos();   /* 时间指针跟随平移 */
   }
   /* direct pan assignments (zoom/snap/mode) must also reset the glide target,
      else a running rAF would overwrite them with stale destinations */
