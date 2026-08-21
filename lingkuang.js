@@ -3589,6 +3589,13 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       var rect0b = stage.getBoundingClientRect();
       var mx0 = e.clientX - rect0b.left;
       timeCursor = xToTime(mx0 - panX);
+      /* 兜底：强制刷新指针视觉（即使 updateTimeCursorPos 被某处吞掉） */
+      if (timeCursorEl) {
+        timeCursorEl.style.display = '';
+        timeCursorEl.style.left = (timeToX(timeCursor) + panX) + 'px';
+        var tcTimeEl = timeCursorEl.querySelector('.tl__time-cursor-time');
+        if (tcTimeEl) tcTimeEl.textContent = fmtScale(Math.round(timeCursor * 100) / 100);
+      }
       updateTimeCursorPos();
       applyTimeCursorState();
       e.preventDefault();
@@ -4047,6 +4054,15 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   stage.addEventListener('click', function (e) {
     if (scrubJustEnded) return;   /* scrub 刚结束，跳过空白关闭 */
     if (moved) { moved = false; return; }  /* was a drag, not a click */
+    /* 默认工具 = 时间指针：点空白定位当前时间（click 兜底，不依赖空格状态，保证一定触发） */
+    if (!eyedropTarget && !e.target.closest('.tl__n, .tl__loop, .tl__storybar, .tl__time-cursor-handle, .tl__detail, .tl__ctx')) {
+      var rectC = stage.getBoundingClientRect();
+      var mxC = e.clientX - rectC.left;
+      timeCursor = xToTime(mxC - panX);
+      updateTimeCursorPos();
+      applyTimeCursorState();
+      saveTimeCursor();
+    }
     /* 吸管模式：点击节点吸取该节点，点击空白吸取时间 */
     if (eyedropTarget) {
       var near = nearestNodeAt(e.clientX, e.clientY);
