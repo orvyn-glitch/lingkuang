@@ -115,7 +115,6 @@ export function renderMap(store: Store, host: HTMLElement): void {
       drawing.push([e.clientX - rect.left, e.clientY - rect.top]);
       renderSvg();
     } else if (panning) {
-      const rect = svg.getBoundingClientRect();
       svg.style.left = panX + (e.clientX - panSX) + 'px';
       svg.style.top = panY + (e.clientY - panSY) + 'px';
     }
