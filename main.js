@@ -41,7 +41,7 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile('index.html');
+    win.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
   /* F12 toggles DevTools — handy for dragging/eyeballing element positions
      (menu bar was removed, so the default accelerator is gone) */
