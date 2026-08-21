@@ -256,7 +256,7 @@ export function mountTimeline(
   let storyMode: 'focus' | 'full' = 'focus';        // 默认聚焦剧情线
   let activeLineId: string | null = null;            // 聚焦的剧情线
   let brushing = false;                              // 笔刷模式
-  let pendingSegs: { start: number; end: number }[] = [];  // 累积段
+  let pendingSegs: { start: number; end: number | null }[] = [];  // 累积段
   const brushSel = document.createElement('div');
   brushSel.style.cssText =
     'position:absolute;top:26px;bottom:0;z-index:4;pointer-events:none;background:rgba(158,194,98,.10);border:1px solid rgba(158,194,98,.55);display:none;';
@@ -305,6 +305,8 @@ export function mountTimeline(
       const v = (e.target as HTMLSelectElement).value;
       activeLineId = v || null;
       render();
+      renderStoryUI();
+      renderSegPanel();
     });
     ui.querySelector('#lk-line-new')?.addEventListener('click', () => {
       if (pendingSegs.length === 0) { brushing = true; renderStoryUI(); return; }
@@ -331,12 +333,26 @@ export function mountTimeline(
     brushSel.style.width = Math.abs(vx1 - vx0) + 'px';
   }
 
-  /* 笔刷拖拽（brushing 时框选时间段加入 pendingSegs） */
-  let brushDrag = false, brushStartX = 0, brushLastX = 0;
+  /* 橡皮擦差集（照抄 legacy eraseRange）：返回擦除 e0~e1 后的段 */
+  function eraseRange(segs: { start: number; end: number | null }[], e0: number, e1: number): { start: number; end: number | null }[] {
+    const out: { start: number; end: number | null }[] = [];
+    segs.forEach((s) => {
+      const s1 = s.end === null || s.end === undefined ? Infinity : s.end;
+      if (e1 < s.start || e0 > s1) { out.push(s); return; }
+      if (e0 <= s.start && e1 >= s1) return;
+      if (e0 > s.start) out.push({ start: s.start, end: e0 });
+      if (e1 < s1) out.push({ start: e1, end: s.end });
+    });
+    return out;
+  }
+
+  /* 笔刷拖拽（brushing 时框选时间段；Alt=擦除模式） */
+  let brushDrag = false, brushStartX = 0, brushLastX = 0, brushErase = false;
   wrap.addEventListener('pointerdown', (e) => {
     if (!brushing) return;
     if ((e.target as HTMLElement).closest('.tl__n')) return;
     brushDrag = true;
+    brushErase = e.altKey;
     brushStartX = e.clientX - wrap.getBoundingClientRect().left;
     brushLastX = brushStartX;
     setBrushSel(brushStartX, brushStartX);
@@ -352,16 +368,25 @@ export function mountTimeline(
     const t0 = brushYearFromVx(brushStartX), t1 = brushYearFromVx(brushLastX);
     const lo = Math.min(t0, t1), hi = Math.max(t0, t1);
     clearBrushSel();
-    if (hi - lo > 0.01) {
+    if (hi - lo <= 0.01) return;
+    if (brushErase) {
+      /* 擦除：对聚焦线已存段 或 未命名累积段做差集 */
+      const tl = timeline();
+      if (activeLineId && tl) {
+        const ln = tl.storylines.find((l) => l.id === activeLineId);
+        if (ln) ln.segments = eraseRange(ln.segments, Math.round(lo * 10) / 10, Math.round(hi * 10) / 10);
+      } else {
+        pendingSegs = eraseRange(pendingSegs, Math.round(lo * 10) / 10, Math.round(hi * 10) / 10);
+      }
+    } else {
       pendingSegs.push({ start: Math.round(lo * 10) / 10, end: Math.round(hi * 10) / 10 });
-      renderStoryUI();
-      render();
     }
+    renderStoryUI();
+    render();
   });
 
   /* 剧情线范围条（时间线上色带）+ 遮罩 */
-  function renderStoryOverlay() {
-    const ln = activeLine();
+  function renderStoryOverlay() {    const ln = activeLine();
     /* 遮罩 */
     let mask = wrap.querySelector('#lk-story-mask') as HTMLElement | null;
     if (!mask) {
@@ -424,6 +449,38 @@ export function mountTimeline(
   }
 
   renderStoryUI();
+  renderSegPanel();
+
+  /* 段列表面板（右侧）：聚焦剧情线时显示段列表，可删段 */
+  function renderSegPanel() {
+    const toolHost = document.getElementById('lk-tool-host');
+    if (!toolHost) return;
+    const tl = timeline();
+    const ln = activeLineId && tl ? tl.storylines.find((l) => l.id === activeLineId) : undefined;
+    if (!ln) { toolHost.innerHTML = ''; return; }
+    toolHost.innerHTML = `
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:15px;font-weight:600;color:var(--fg);">${ln.name}</div>
+        <div style="font-size:var(--text-xs);color:var(--fg-2);">${ln.segments.length} 段 · 笔刷框选加段，Alt+框选擦除</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${ln.segments.map((s, i) => `<div style="display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:var(--text-xs);color:var(--fg);">
+            <span style="font-family:var(--font-mono);color:var(--accent);">${s.start} → ${s.end === null ? '∞' : s.end}</span>
+            <button data-si="${i}" style="margin-left:auto;background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px;">✕</button>
+          </div>`).join('') || '<div style="font-size:var(--text-xs);color:var(--fg-2);">（无线段）</div>'}
+        </div>
+      </div>`;
+    toolHost.querySelectorAll('[data-si]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const si = parseInt((el as HTMLElement).dataset.si!, 10);
+        if (tl) {
+          const line = tl.storylines.find((l) => l.id === activeLineId);
+          if (line) line.segments.splice(si, 1);
+        }
+        renderSegPanel();
+        render();
+      });
+    });
+  }
 
   /* ══════════ 循环系统（循环框 + 幽灵节点 + 面板）══════════ */
   let loopPanelId: string | null = null;    // 当前打开面板的循环
