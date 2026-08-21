@@ -4,6 +4,8 @@ import { listTools, openTool } from '../tools/registry';
 import { registerAllTools } from '../tools/register';
 import { mountTimeline } from './timeline';
 import { renderNodeDetail } from './detail';
+import { addTimeline } from '../store/actions';
+import { currentWorld } from '../store/store';
 
 export function renderShell(store: Store, host: HTMLElement): void {
   registerAllTools();
@@ -31,12 +33,16 @@ export function renderShell(store: Store, host: HTMLElement): void {
 
   renderWorldTabs(store);
   renderToolbar(store, host);
+  renderTimelineTabs(store);
   const timelineBody = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-body') as HTMLElement;
   mountTimeline(store, timelineBody, (node) => {
     const toolHost = document.getElementById('lk-tool-host');
     if (toolHost) renderNodeDetail(store, toolHost, node);
   });
-  store.subscribe(() => renderWorldTabs(store));
+  store.subscribe(() => {
+    renderWorldTabs(store);
+    renderTimelineTabs(store);
+  });
 }
 
 function renderWorldTabs(store: Store): void {
@@ -54,7 +60,27 @@ function renderWorldTabs(store: Store): void {
   });
 }
 
-function renderToolbar(store: Store, host: HTMLElement): void {
+/** 时间线 tabs（沙盘 pane-head）：切换时间线 + 新建 */
+function renderTimelineTabs(store: Store): void {
+  const head = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-head');
+  if (!head) return;
+  const ws = currentWorld(store);
+  const ids = ws.order ?? [];
+  const tabsHtml = ids
+    .map(
+      (id) =>
+        `<button class="lk-tl-tab${id === store.activeTimeline ? ' is-active' : ''}" data-tl="${id}">${ws.timelines[id]?.name ?? '?'}<span class="cnt">${ws.timelines[id]?.nodes.length ?? 0}</span></button>`
+    )
+    .join('');
+  head.innerHTML =
+    `<span class="lk-pane-title">世界沙盘 · 时间线</span><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new">＋</button></span>`;
+  head.querySelectorAll('.lk-tl-tab[data-tl]').forEach((el) => {
+    el.addEventListener('click', () => store.setActiveTimeline((el as HTMLElement).dataset.tl!));
+  });
+  const newBtn = head.querySelector('#lk-tl-new');
+  if (newBtn) newBtn.addEventListener('click', () => addTimeline(store, '新时间线'));
+}
+
   const bar = document.getElementById('lk-toolbar');
   const toolHost = document.getElementById('lk-tool-host');
   if (!bar || !toolHost) return;

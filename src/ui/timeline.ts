@@ -31,7 +31,7 @@ export function mountTimeline(
 
   function timeline(): Timeline | undefined {
     const ws = currentWorld(store);
-    const id = ws.order?.[0];
+    const id = store.activeTimeline || ws.order?.[0];
     return id ? getTimeline(store, id) : undefined;
   }
   function yearX(t: number): number {

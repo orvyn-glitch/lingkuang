@@ -124,6 +124,26 @@ body {
   gap: 8px;
   align-items: center;
 }
+.lk-pane-title { white-space: nowrap; }
+.lk-tl-tabs { display: flex; gap: 2px; align-items: center; overflow-x: auto; flex: 1; }
+.lk-tl-tab {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--fg-2);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+.lk-tl-tab:hover { background: var(--surface); color: var(--fg); }
+.lk-tl-tab.is-active { background: var(--chrome); color: var(--accent); }
+.lk-tl-tab .cnt { font-family: var(--font-mono); font-size: 9px; opacity: 0.6; }
+.lk-tl-tab.is-new { font-weight: 600; color: var(--fg-2); }
+.lk-tl-tab.is-new:hover { color: var(--accent); }
 .lk-ph { color: var(--accent); font-size: 10px; }
 .lk-pane-body { flex: 1; min-height: 0; overflow: auto; }
 .lk-placeholder {
