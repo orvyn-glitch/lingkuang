@@ -17,6 +17,42 @@
     char: document.getElementById('view-char')
   };
   var navItems = document.querySelectorAll('.seam__item');
+
+  /* ── 插件化：工具注册表 + 大厅卡片自动渲染 ────────────────
+     新工具 = registerTool({ id, name, icon, desc, meta:[], el })
+     大厅卡片自动生成；el 为工具的视图容器（可选，无则点击只切 nav） */
+  var tools = {};
+  var toolViews = {};
+  function registerTool(tool) {
+    if (!tool || !tool.id) return;
+    tools[tool.id] = tool;
+    if (tool.el) toolViews[tool.id] = tool.el;
+    renderLobbyCards();
+  }
+  function renderLobbyCards() {
+    var grid = document.getElementById('grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    Object.keys(tools).forEach(function (id) {
+      var t = tools[id];
+      var card = document.createElement('article');
+      card.className = 'niche';
+      card.innerHTML = '<div class="niche__cell">' + (t.icon || '·') + '</div>'
+        + '<div class="niche__title">' + (t.name || id) + '</div>'
+        + (t.desc ? '<p class="niche__desc">' + t.desc + '</p>' : '')
+        + (t.meta ? '<div class="niche__meta"><span>' + t.meta.join('</span><span>') + '</span></div>' : '');
+      card.addEventListener('click', function () {
+        if (t.onOpen) t.onOpen();
+        if (t.el || views[t.id]) showView(id);   /* 无视图的工具（纯装饰）不切视图 */
+      });
+      grid.appendChild(card);
+    });
+  }
+  /* 暴露给外部插件文件（js/tool-*.js 通过 window.LINGKUANG.registerTool 注册） */
+  window.LINGKUANG = window.LINGKUANG || {};
+  window.LINGKUANG.registerTool = registerTool;
+  window.LINGKUANG.showView = function (name) { showView(name); };
+
   function showView(name) {
     navItems.forEach(function (it) {
       if (it.dataset.nav === name) it.classList.add('is-active');
@@ -24,6 +60,9 @@
     });
     Object.keys(views).forEach(function (k) {
       views[k].setAttribute('data-hidden', k === name ? '0' : '1');
+    });
+    Object.keys(toolViews).forEach(function (k) {
+      if (toolViews[k] && toolViews[k].setAttribute) toolViews[k].setAttribute('data-hidden', k === name ? '0' : '1');
     });
     /* opening the timeline from elsewhere → fit the whole range */
     if (name === 'timeline' && stage && stageReady) {
@@ -33,18 +72,27 @@
       applyPan();
     }
   }
+  /* ── 内建工具注册（作为插件；灵感触发器/时间线/编辑器是现有视图）── */
+  registerTool({ id: 'timeline', name: '世界观时间线', icon: '🌍',
+    desc: '那些时间的边角。节点会记住你把它放在哪里，以及你当时的心情。',
+    meta: ['时间线', '拖拽平移 · Alt 缩放'], el: views.timeline });
+  registerTool({ id: 'editor', name: '文本编辑器', icon: '📝',
+    desc: '一张没有人看过的纸。写下的字会在你离开很久后，仍然有温度。',
+    meta: ['编辑器', 'Markdown 双栏'], el: views.editor });
+  registerTool({ id: 'char', name: '灵感触发器', icon: '骰',
+    desc: '从词库的角落里抽一张脸。发色、身世、执念——都由骰子替你决定。',
+    meta: ['随机角色 · 58 分类', '4669 词条'], el: views.char });
+  registerTool({ id: 'system', name: '系统工具', icon: '⚙️',
+    desc: '机器的低语。灯光开关、风扇转速、还有那些嗡嗡作响的东西。',
+    meta: ['系统 · 通道正常', '嗡嗡声 · 低'] });
   navItems.forEach(function (it) {
     it.addEventListener('click', function () { showView(it.dataset.nav); });
   });
 
-  /* tool cards in the lobby jump into their view */
-  document.querySelectorAll('[data-open-tool]').forEach(function (card) {
-    card.addEventListener('click', function () { showView(card.dataset.openTool); });
-  });
-
-  /* ── search filter (lobby) ─────────────────────────────── */
-  var search = document.querySelector('.search input');
+  /* 大厅卡片由 registerTool 渲染并绑定点击（见插件化框架）——
+     这里只保留 grid 引用给搜索过滤用 */
   var grid = document.getElementById('grid');
+  var search = document.querySelector('.search input');
   search.addEventListener('input', function () {
     var q = search.value.trim().toLowerCase();
     Array.prototype.forEach.call(grid.children, function (c) {

@@ -15,9 +15,14 @@
 ## 文件职责
 
 - `main.js`：Electron 主进程（IPC：数据/设置/词库/AI 联想与分类）
-- `lingkuang.js`：渲染进程全部逻辑（~4750 行 IIFE，`var` + 事件委托）
-- `index.html`：单文件 UI + 全部 CSS（设计令牌内联）
+- `lingkuang.js`：渲染进程核心（~5000 行 IIFE，`var` + 事件委托）
+- `js/`：**插件文件目录**——新工具写在 `js/tool-<id>.js`，用 `window.LINGKUANG.registerTool({id, name, icon, desc, meta, el, onOpen})` 注册（见 `js/README.md`）。**新工具不要往 lingkuang.js 加**（它只含核心 + 4 个内建工具注册）
+- `index.html`：单文件 UI + 全部 CSS（设计令牌内联）；大厅卡片由插件注册表自动渲染（`#grid` 空容器）
 - `data/worldbuilding.js`：种子世界观；`data/character_lib.json`：角色词库（萌百来源 CC BY-NC-SA，勿商用）
+
+## 测试后门
+
+- 环境变量 `LINGKUANG_TEST_DATA=<文件路径>` → 数据读写走该文件，不碰 `%APPDATA%\lingkuang\worldbuilding.json`（测试/调试损坏数据用）
 
 ## 风格约定
 
