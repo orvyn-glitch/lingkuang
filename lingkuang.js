@@ -3219,6 +3219,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         track.style.transform = 'translate(' + (panX - panXBase) + 'px,' + panY + 'px)';
         buildScale();
         syncVisible();   /* 平移停止：视口裁剪收尾 */
+        updateTimeCursorPos();   /* 时间指针跟随 glide */
+        updateRangeMask();       /* 聚焦遮罩跟随 glide */
         return;
       }
       var k = SETTINGS ? SETTINGS.glide : 0.15;   /* glide factor per frame — gentle camera ease */
@@ -3229,6 +3231,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       buildScale();   /* ruler glides with the camera */
       syncVisible();   /* 平移中：视口裁剪跟随 */
       refreshCursorTime();   /* cursor readout follows the pan */
+      updateTimeCursorPos();   /* 时间指针跟随 glide（每帧） */
+      updateRangeMask();       /* 聚焦遮罩跟随 glide（每帧） */
       panRaf = requestAnimationFrame(step);
     };
     panRaf = requestAnimationFrame(step);
