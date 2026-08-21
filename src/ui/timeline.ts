@@ -69,8 +69,7 @@ export function mountTimeline(
     let html = '';
     for (let t = t0; t <= t1; t += step) {
       const x = timeToX(t);
-      html += `<div style="position:absolute;left:${x}px;top:0;height:100%;border-left:1px solid var(--border-soft);">
-        <span style="position:absolute;top:3px;left:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-2);white-space:nowrap;">${fmtScale(Math.round(t * 100) / 100)}</span></div>`;
+      html += `<div class="tl__axis-tick" style="left:${x}px;"><span class="tl__axis-label">${fmtScale(Math.round(t * 100) / 100)}</span></div>`;
     }
     scaleEl.innerHTML = html;
   }
@@ -95,20 +94,20 @@ export function mountTimeline(
     track.innerHTML =
       lineHtml +
       nodes
-      .map((n) => {
-        const x = timeToX(n.year);
-        const sel = n.id === selectedId;
-        return `<div class="tl-node${sel ? ' is-sel' : ''}" data-id="${n.id}" style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translateX(-50%);${sel ? 'z-index:3;' : ''}">
-          <div style="width:10px;height:10px;border-radius:50%;background:${n.type === 'event' ? 'var(--fg)' : 'var(--accent)'};${sel ? 'outline:2px solid var(--accent);outline-offset:2px;' : ''}"></div>
-          <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${n.title}</div>
-        </div>`;
-      })
-      .join('');
+        .map((n) => nodeHtml(n, timeToX(n.year), n.id === selectedId))
+        .join('');
     renderScale();
     updateCursor();
   }
 
   let render: () => void = renderBase;   /* 可被剧情线/循环包装重赋 */
+
+  /* 节点 HTML（legacy 结构：.tl__n + .cap + .tl__name） */
+  function nodeHtml(n: TimelineNode, x: number, sel: boolean): string {
+    return `<div class="tl__n${sel ? ' is-sel' : ''}${n.type === 'event' ? ' is-event' : ''}" data-id="${n.id}" style="left:${x}px;top:12px;">
+      <div class="cap"></div><div class="tl__name">${n.title}</div>
+    </div>`;
+  }
   function updateCursor() {
     const ws = currentWorld(store);
     const t = ws.timeCursor;
@@ -117,7 +116,7 @@ export function mountTimeline(
     cursorEl.style.left = timeToX(t) + 'px';
     cursorTimeEl.textContent = fmtScale(Math.round(t * 100) / 100);
     /* 未发生节点淡化 */
-    track.querySelectorAll('.tl-node').forEach((el) => {
+    track.querySelectorAll('.tl__n').forEach((el) => {
       const n = (el as HTMLElement).dataset.id;
       const node = timeline()?.nodes.find((x) => x.id === n);
       if (node) (el as HTMLElement).style.opacity = node.year > t ? '0.4' : '';
@@ -146,7 +145,7 @@ export function mountTimeline(
 
   wrap.addEventListener('pointerdown', (e) => {
     if (typeof brushing !== 'undefined' && brushing) return;   /* 笔刷模式：交给笔刷分支 */
-    const nodeEl = (e.target as HTMLElement).closest('.tl-node') as HTMLElement | null;
+    const nodeEl = (e.target as HTMLElement).closest('.tl__n') as HTMLElement | null;
     if (nodeEl) {
       /* 节点：点击选中 / 拖动改时间 */
       nodeDragId = nodeEl.dataset.id ?? null;
@@ -228,7 +227,7 @@ export function mountTimeline(
     { passive: false }
   );
   wrap.addEventListener('dblclick', (e) => {
-    if ((e.target as HTMLElement).closest('.tl-node')) return;
+    if ((e.target as HTMLElement).closest('.tl__n')) return;
     fitAll();
   });
 
@@ -337,7 +336,7 @@ export function mountTimeline(
   let brushDrag = false, brushStartX = 0, brushLastX = 0;
   wrap.addEventListener('pointerdown', (e) => {
     if (!brushing) return;
-    if ((e.target as HTMLElement).closest('.tl-node')) return;
+    if ((e.target as HTMLElement).closest('.tl__n')) return;
     brushDrag = true;
     brushStartX = e.clientX - wrap.getBoundingClientRect().left;
     brushLastX = brushStartX;
@@ -385,11 +384,10 @@ export function mountTimeline(
       if (xHi < w) mask.innerHTML += `<div style="position:absolute;top:0;bottom:0;left:${xHi}px;width:${w - xHi}px;background:rgba(110,108,100,.3);"></div>`;
     }
     /* 范围条色带 */
-    let bar = wrap.querySelector('#lk-story-bar') as HTMLElement | null;
+    let bar = wrap.querySelector('.tl__storybar') as HTMLElement | null;
     if (!bar) {
       bar = document.createElement('div');
-      bar.id = 'lk-story-bar';
-      bar.style.cssText = 'position:absolute;top:26px;height:3px;z-index:3;pointer-events:none;';
+      bar.className = 'tl__storybar';
       wrap.appendChild(bar);
     }
     bar.innerHTML = '';
@@ -397,7 +395,7 @@ export function mountTimeline(
       ln.segments.forEach((s) => {
         const x0 = timeToX(s.start);
         const x1 = s.end === null ? timeToX(Math.max(...(timeline()?.nodes.map((n) => n.year) ?? [s.start]))) : timeToX(s.end);
-        bar.innerHTML += `<div style="position:absolute;left:${x0}px;width:${Math.max(2, x1 - x0)}px;height:3px;background:var(--accent);opacity:.7;"></div>`;
+        bar.innerHTML += `<div class="tl__storybar-seg" style="left:${x0}px;width:${Math.max(2, x1 - x0)}px;"></div>`;
       });
     }
   }
@@ -428,10 +426,7 @@ export function mountTimeline(
     return html + nodes.map((n) => {
       const x = timeToX(n.year);
       const sel = n.id === selectedId;
-      return `<div class="tl-node${sel ? ' is-sel' : ''}" data-id="${n.id}" style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translateX(-50%);${sel ? 'z-index:3;' : ''}">
-        <div style="width:10px;height:10px;border-radius:50%;background:${n.type === 'event' ? 'var(--fg)' : 'var(--accent)'};${sel ? 'outline:2px solid var(--accent);outline-offset:2px;' : ''}"></div>
-        <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${n.title}</div>
-      </div>`;
+      return nodeHtml(n, x, sel);
     }).join('');
   }
 
@@ -474,23 +469,20 @@ export function mountTimeline(
       const r = loopRange(L);
       if (!r) return;
       const x0 = timeToX(r.lo), x1 = timeToX(r.hi);
-      frames.innerHTML += `<div class="tl-loop-frame" data-loop-id="${L.id}" style="position:absolute;top:0;left:${x0}px;width:${Math.max(2, x1 - x0)}px;height:100%;border:1px dashed rgba(158,194,98,.4);border-top:none;border-bottom:none;pointer-events:auto;cursor:pointer;" title="${L.name}（${L.count} 次）"></div>`;
+      frames.innerHTML += `<div class="tl__loop" data-loop-id="${L.id}" style="left:${x0}px;width:${Math.max(2, x1 - x0)}px;" title="${L.name}（${L.count} 次）"><span class="tl__loop-badge">${L.count}×</span></div>`;
       /* 幽灵节点：范围内节点复制 count-1 次，偏移 span */
       if (L.count > 1) {
         const inner = tl.nodes.filter((n) => n.year >= r.lo && n.year <= r.hi);
         for (let c = 1; c < L.count; c++) {
           inner.forEach((n) => {
             const x = timeToX(n.year + c * r.span);
-            frames!.innerHTML += `<div style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%);opacity:.35;pointer-events:none;">
-              <div style="width:10px;height:10px;border-radius:50%;background:var(--fg);border:1px dashed var(--accent);"></div>
-              <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${n.title} ²</div>
-            </div>`;
+            frames!.innerHTML += `<div class="tl__ghost" style="left:${x}px;top:12px;"><div class="cap"></div><div class="tl__name">${n.title}²</div></div>`;
           });
         }
       }
     });
     /* 双击循环框 → 面板（右侧） */
-    frames.querySelectorAll('.tl-loop-frame').forEach((el) => {
+    frames.querySelectorAll('.tl__loop').forEach((el) => {
       el.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         const lid = (el as HTMLElement).dataset.loopId!;
@@ -613,11 +605,7 @@ export function mountTimeline(
         .map((node, i) => {
           const x = 50 + i * pitch;
           const sel = node.id === selectedId;
-          return `<div class="tl-node${sel ? ' is-sel' : ''}" data-id="${node.id}" style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translateX(-50%);${sel ? 'z-index:3;' : ''}">
-            <div style="width:10px;height:10px;border-radius:50%;background:${node.type === 'event' ? 'var(--fg)' : 'var(--accent)'};${sel ? 'outline:2px solid var(--accent);outline-offset:2px;' : ''}"></div>
-            <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${node.title}</div>
-            <div style="font-size:8px;color:var(--fg-2);">${node.year}</div>
-          </div>`;
+          return nodeHtml(node, x, sel) + `<div style="font-size:8px;color:var(--fg-2);position:absolute;top:34px;left:50%;transform:translateX(-50%);">${node.year}</div>`;
         })
         .join('');
     renderScale();
