@@ -3087,6 +3087,12 @@ body.is-idle .veil__grain {
             <button data-type="event" class="is-on">世界事件</button>
             <button data-type="plot">剧情 / 人物</button>
           </div>
+          <!-- 文稿本体（Obsidian 式：#字段：值 自动识别为字段，正文渲染） -->
+          <div class="tl__detail-sec-title">文稿</div>
+          <div class="tl__detail-chips" id="d-doc-fields" style="flex-direction:column;align-items:stretch;gap:2px;"></div>
+          <div class="tl__detail-desc" id="d-doc-body" style="white-space:pre-wrap;font-size:var(--text-sm);color:var(--fg-2);"></div>
+          <button class="btn btn--ghost" id="d-doc-btn" style="width:100%;margin-top:6px;font-size:var(--text-xs);padding:6px;">✎ 编辑文稿</button>
+          <div id="d-doc-edit" style="display:none;margin-top:6px;"></div>
           <div>
             <div class="tl__detail-sec-title">关联人物</div>
             <div class="tl__detail-chips" id="d-people"></div>

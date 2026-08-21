@@ -232,7 +232,36 @@
     if (nm) nm.focus();
   });
 
-  /* ── view switching ────────────────────────────────────── */
+  /* ── 文档本体（Obsidian 式）：节点/实体内容 = Markdown 文稿，面板是视图 ──
+     解析：`#字段：值` 行 → 结构化字段；其余 → 正文。 */
+  function parseDoc(doc) {
+    var fields = [];
+    var bodyLines = [];
+    String(doc || '').split('\n').forEach(function (line) {
+      var m = line.match(/^#\s*([^：:]+)[：:]\s*(.*)$/);
+      if (m && m[1].trim()) fields.push({ k: m[1].trim(), v: m[2].trim() });
+      else bodyLines.push(line);
+    });
+    return { fields: fields, body: bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+  }
+  /* 节点/实体打开文稿编辑器（面板内 textarea，失焦保存并刷新面板） */
+  function openDocEditor(target, afterSave) {
+    var ta = document.createElement('textarea');
+    ta.spellcheck = false;
+    ta.style.cssText = 'width:100%;min-height:140px;resize:vertical;padding:8px 10px;font-family:var(--font-mono);font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;';
+    ta.value = target.doc || '';
+    var wrap = document.getElementById('d-doc-edit');
+    if (!wrap) return;
+    wrap.style.display = '';
+    wrap.innerHTML = '';
+    wrap.appendChild(ta);
+    ta.focus();
+    ta.addEventListener('blur', function () {
+      target.doc = ta.value;
+      saveTimelines();
+      if (afterSave) afterSave();
+    });
+  }
   var views = {
     lobby: document.getElementById('view-lobby'),
     timeline: document.getElementById('view-timeline'),
@@ -1981,6 +2010,30 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     addLinkedInput(people, n, 'people', '人物', el);
     addLinkedInput(places, n, 'places', '地点', el);
     foot.textContent = n.type === 'year' ? '年代锚点' : (n.type === 'plot' ? '剧情 / 人物节点' : '世界事件节点');
+    /* 文稿本体渲染：#字段 高亮 + 正文；编辑按钮打开面板内 textarea */
+    var docFieldsEl = document.getElementById('d-doc-fields');
+    var docBodyEl = document.getElementById('d-doc-body');
+    var docBtn = document.getElementById('d-doc-btn');
+    var docEditWrap = document.getElementById('d-doc-edit');
+    function renderNodeDoc() {
+      if (!docFieldsEl || !docBodyEl) return;
+      var parsed = parseDoc(n.doc);
+      docFieldsEl.innerHTML = parsed.fields.length
+        ? parsed.fields.map(function (f) { return '<span class="pf-k">#' + escapeHtml(f.k) + '</span><span class="pf-v">：' + escapeHtml(f.v) + '</span>'; }).join('<br>')
+        : '<span class="pf-empty">（无字段 · 用 #字段：值 添加，自动识别）</span>';
+      docBodyEl.textContent = parsed.body || '';
+      docBodyEl.style.display = parsed.body ? '' : 'none';
+    }
+    renderNodeDoc();
+    if (docEditWrap) docEditWrap.style.display = 'none';
+    if (docBtn) {
+      docBtn.onclick = function () {
+        openDocEditor(n, function () {
+          docEditWrap.style.display = 'none';
+          renderNodeDoc();
+        });
+      };
+    }
     /* 关联文稿（编辑器联动）：下拉选 docs 文稿，保存 n.docId；打开按钮跳编辑器 */
     var docSel = document.getElementById('d-doc-select');
     var docOpen = document.getElementById('d-doc-open');
