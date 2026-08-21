@@ -10,10 +10,9 @@ const IC = {
 };
 
 export function registerAllTools(): void {
-  /* 模块（左栏）：大的功能视图。语义联想是灵感触发器的功能，多分支/推演是时间线的功能——不单独成模块 */
+  /* 模块（左栏）：大的功能视图。语义联想=灵感触发器；多分支/推演/导出=世界沙盘附属——都不单独成模块 */
   registerTool({ id: 'inspire', name: '灵感触发器', icon: IC.dice });
   registerTool({ id: 'ai', name: 'AI', icon: IC.brain, placeholder: true });
-  registerTool({ id: 'export', name: '导出', icon: IC.export, placeholder: true });
   registerTool({ id: 'settings', name: '设置', icon: IC.settings, placeholder: true });
   /* 占位模块：素材库 / 编辑器独立入口 */
   registerTool({ id: 'library', name: '素材库', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>', placeholder: true });
