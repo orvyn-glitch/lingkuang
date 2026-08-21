@@ -7,8 +7,11 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-/* proper app identity → userData goes to %APPDATA%\lingkuang, not Electron */
-app.setName('lingkuang');
+/* proper app identity → userData goes to %APPDATA%\lingkuang, not Electron。
+   setName 在 Electron 偶发时序 bug（Cannot read properties of undefined (reading 'setName')），
+   用显式 setPath 兜底保证 userData 路径正确。 */
+try { app.setName('lingkuang'); } catch (e) { /* 偶发时序 bug，setPath 保证路径 */ }
+try { app.setPath('userData', path.join(app.getPath('appData'), 'lingkuang')); } catch (e) {}
 
 /* remove the application menu entirely — Alt must NOT summon a menu bar */
 Menu.setApplicationMenu(null);
