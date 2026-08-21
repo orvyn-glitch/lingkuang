@@ -560,6 +560,8 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   document.addEventListener('keyup', function (e) {
     if (e.code === 'Space') spaceDown = false;
   });
+  /* 窗口失焦/离开时清空格状态（否则 keyup 丢失，spaceDown 卡 true → 指针分支被跳过） */
+  window.addEventListener('blur', function () { spaceDown = false; });
   function loadTimeCursor() {
     var ws = worldsets[activeWorldset];
     if (ws && isFinite(ws.timeCursor)) { timeCursor = ws.timeCursor; return; }
