@@ -25,7 +25,6 @@ export function openTool(id: string, host: HTMLElement): void {
   if (tool.open) tool.open(host);
   else renderPlaceholder(host, tool);
 }
-
 function renderPlaceholder(host: HTMLElement, tool: Tool): void {
   host.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--fg-2);">

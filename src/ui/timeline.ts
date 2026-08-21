@@ -4,7 +4,7 @@
 import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { getTimeline, setTimeCursor, saveNodeDoc } from '../store/actions';
-import type { Timeline, TimelineNode } from '../store/types';
+import type { Timeline, TimelineNode, Storyline } from '../store/types';
 
 interface View {
   panX: number;
@@ -85,7 +85,16 @@ export function mountTimeline(
       return;
     }
     const nodes = tl.nodes;
-    track.innerHTML = nodes
+    let lineHtml = '';
+    if (nodes.length) {
+      const yrs = nodes.map((n) => n.year);
+      const lo = Math.min(...yrs), hi = Math.max(...yrs);
+      const x0 = timeToX(lo), x1 = timeToX(hi);
+      lineHtml = `<div class="tl-line" style="position:absolute;top:17px;left:${x0}px;width:${Math.max(0, x1 - x0)}px;height:1px;background:var(--border);pointer-events:none;"></div>`;
+    }
+    track.innerHTML =
+      lineHtml +
+      nodes
       .map((n) => {
         const x = timeToX(n.year);
         const sel = n.id === selectedId;
@@ -136,6 +145,7 @@ export function mountTimeline(
   let nodeDragMoved = false;
 
   wrap.addEventListener('pointerdown', (e) => {
+    if (typeof brushing !== 'undefined' && brushing) return;   /* 笔刷模式：交给笔刷分支 */
     const nodeEl = (e.target as HTMLElement).closest('.tl-node') as HTMLElement | null;
     if (nodeEl) {
       /* 节点：点击选中 / 拖动改时间 */
@@ -240,4 +250,190 @@ export function mountTimeline(
   store.subscribe(() => render());
   render();
   requestAnimationFrame(() => fitAll());
+
+  /* ══════════ 剧情线（笔刷创建 / 多段 / 聚焦过滤 / 遮罩）══════════ */
+  const TL_HEAD = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-head') as HTMLElement | null;
+  if (!TL_HEAD) return;
+
+  let storyMode: 'focus' | 'full' = 'focus';        // 默认聚焦剧情线
+  let activeLineId: string | null = null;            // 聚焦的剧情线
+  let brushing = false;                              // 笔刷模式
+  let pendingSegs: { start: number; end: number }[] = [];  // 累积段
+  const brushSel = document.createElement('div');
+  brushSel.style.cssText =
+    'position:absolute;top:26px;bottom:0;z-index:4;pointer-events:none;background:rgba(158,194,98,.10);border:1px solid rgba(158,194,98,.55);display:none;';
+  wrap.appendChild(brushSel);
+
+  function linesOf(): Storyline[] {
+    const tl = timeline();
+    return (tl && Array.isArray(tl.storylines) ? tl.storylines : []) as Storyline[];
+  }
+  function activeLine(): Storyline | undefined {
+    return linesOf().find((l) => l.id === activeLineId);
+  }
+  function inLine(t: number): boolean {
+    const ln = activeLine();
+    if (!ln) return false;
+    return ln.segments.some((s) => (s.end === null ? t >= s.start : t >= s.start && t <= s.end));
+  }
+
+  function renderStoryUI() {
+    if (!TL_HEAD) return;
+    const lines = linesOf();
+    const active = activeLineId && lines.some((l) => l.id === activeLineId) ? activeLineId : lines[0]?.id ?? null;
+    if (active !== activeLineId) activeLineId = active;
+    const lineOpts = lines
+      .map((l) => `<option value="${l.id}"${l.id === activeLineId ? ' selected' : ''}>${l.name}</option>`)
+      .join('');
+    const existing = TL_HEAD.querySelector('#lk-story-ui');
+    if (existing) existing.remove();
+    const ui = document.createElement('span');
+    ui.id = 'lk-story-ui';
+    ui.style.cssText = 'display:flex;gap:4px;align-items:center;';
+    ui.innerHTML = `
+      <button class="lk-tl-tab${brushing ? ' is-active' : ''}" id="lk-brush" title="笔刷：拖拽空白框选时间段加入剧情线">笔刷</button>
+      <select class="lk-tl-tab" id="lk-line-sel" style="font-size:11px;background:none;border:1px solid var(--border-soft);border-radius:var(--radius-sm);color:var(--fg);padding:2px 4px;" ${lines.length ? '' : 'disabled'}>
+        <option value="">— 世界历史 —</option>${lineOpts}</select>
+      <button class="lk-tl-tab is-new" id="lk-line-new" title="新建剧情线">＋线</button>
+      ${pendingSegs.length ? `<span class="cnt" style="font-size:10px;color:var(--accent);">已选 ${pendingSegs.length} 段</span>` : ''}`;
+    TL_HEAD.appendChild(ui);
+
+    ui.querySelector('#lk-brush')?.addEventListener('click', () => {
+      brushing = !brushing;
+      renderStoryUI();
+      if (!brushing) clearBrushSel();
+    });
+    ui.querySelector('#lk-line-sel')?.addEventListener('change', (e) => {
+      const v = (e.target as HTMLSelectElement).value;
+      activeLineId = v || null;
+      render();
+    });
+    ui.querySelector('#lk-line-new')?.addEventListener('click', () => {
+      if (pendingSegs.length === 0) { brushing = true; renderStoryUI(); return; }
+      const id = 'sl' + Date.now();
+      const tl = timeline();
+      if (!tl) return;
+      if (!tl.storylines) tl.storylines = [];
+      const name = `剧情线 ${tl.storylines.length + 1}`;
+      tl.storylines.push({ id, name, segments: pendingSegs.slice() });
+      pendingSegs = [];
+      activeLineId = id;
+      brushing = false;
+      clearBrushSel();
+      renderStoryUI();
+      render();
+    });
+  }
+
+  function brushYearFromVx(vx: number): number { return xToTime(vx); }
+  function clearBrushSel() { brushSel.style.display = 'none'; brushSel.style.left = '0'; brushSel.style.width = '0'; }
+  function setBrushSel(vx0: number, vx1: number) {
+    brushSel.style.display = '';
+    brushSel.style.left = Math.min(vx0, vx1) + 'px';
+    brushSel.style.width = Math.abs(vx1 - vx0) + 'px';
+  }
+
+  /* 笔刷拖拽（brushing 时框选时间段加入 pendingSegs） */
+  let brushDrag = false, brushStartX = 0, brushLastX = 0;
+  wrap.addEventListener('pointerdown', (e) => {
+    if (!brushing) return;
+    if ((e.target as HTMLElement).closest('.tl-node')) return;
+    brushDrag = true;
+    brushStartX = e.clientX - wrap.getBoundingClientRect().left;
+    brushLastX = brushStartX;
+    setBrushSel(brushStartX, brushStartX);
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!brushDrag) return;
+    brushLastX = e.clientX - wrap.getBoundingClientRect().left;
+    setBrushSel(brushStartX, brushLastX);
+  });
+  window.addEventListener('pointerup', () => {
+    if (!brushDrag) return;
+    brushDrag = false;
+    const t0 = brushYearFromVx(brushStartX), t1 = brushYearFromVx(brushLastX);
+    const lo = Math.min(t0, t1), hi = Math.max(t0, t1);
+    clearBrushSel();
+    if (hi - lo > 0.01) {
+      pendingSegs.push({ start: Math.round(lo * 10) / 10, end: Math.round(hi * 10) / 10 });
+      renderStoryUI();
+      render();
+    }
+  });
+
+  /* 剧情线范围条（时间线上色带）+ 遮罩 */
+  function renderStoryOverlay() {
+    const ln = activeLine();
+    /* 遮罩 */
+    let mask = wrap.querySelector('#lk-story-mask') as HTMLElement | null;
+    if (!mask) {
+      mask = document.createElement('div');
+      mask.id = 'lk-story-mask';
+      mask.style.cssText = 'position:absolute;top:26px;bottom:0;left:0;right:0;z-index:2;pointer-events:none;';
+      wrap.appendChild(mask);
+    }
+    mask.innerHTML = '';
+    if (storyMode === 'focus' && ln) {
+      /* 范围外盖灰 */
+      const lo = Math.min(...ln.segments.map((s) => s.start));
+      const hi = ln.segments.some((s) => s.end === null)
+        ? Math.max(...ln.segments.map((s) => (s.end === null ? -Infinity : s.end)), ...ln.segments.filter((s) => s.end === null).map(() => (timeline()?.nodes.map((n) => n.year).reduce((a, b) => Math.max(a, b), -Infinity) ?? 0)))
+        : Math.max(...ln.segments.map((s) => s.end!));
+      const xLo = timeToX(lo), xHi = timeToX(hi);
+      const w = wrap.clientWidth;
+      if (xLo > 0) mask.innerHTML += `<div style="position:absolute;top:0;bottom:0;left:0;width:${xLo}px;background:rgba(110,108,100,.3);"></div>`;
+      if (xHi < w) mask.innerHTML += `<div style="position:absolute;top:0;bottom:0;left:${xHi}px;width:${w - xHi}px;background:rgba(110,108,100,.3);"></div>`;
+    }
+    /* 范围条色带 */
+    let bar = wrap.querySelector('#lk-story-bar') as HTMLElement | null;
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'lk-story-bar';
+      bar.style.cssText = 'position:absolute;top:26px;height:3px;z-index:3;pointer-events:none;';
+      wrap.appendChild(bar);
+    }
+    bar.innerHTML = '';
+    if (ln) {
+      ln.segments.forEach((s) => {
+        const x0 = timeToX(s.start);
+        const x1 = s.end === null ? timeToX(Math.max(...(timeline()?.nodes.map((n) => n.year) ?? [s.start]))) : timeToX(s.end);
+        bar.innerHTML += `<div style="position:absolute;left:${x0}px;width:${Math.max(2, x1 - x0)}px;height:3px;background:var(--accent);opacity:.7;"></div>`;
+      });
+    }
+  }
+
+  /* 聚焦过滤：渲染时只显示线内节点 */
+  const origRender = render;
+  render = function () {
+    const tl = timeline();
+    if (tl && storyMode === 'focus' && activeLine()) {
+      const nodes = tl.nodes.filter((n) => inLine(n.year));
+      track.innerHTML = lineHtmlOf(tl, nodes);
+      renderScale();
+      updateCursor();
+    } else {
+      origRender();
+    }
+    renderStoryOverlay();
+  };
+
+  function lineHtmlOf(tl: Timeline, nodes: TimelineNode[]): string {
+    let html = '';
+    if (nodes.length) {
+      const yrs = nodes.map((n) => n.year);
+      const lo = Math.min(...yrs), hi = Math.max(...yrs);
+      const x0 = timeToX(lo), x1 = timeToX(hi);
+      html = `<div class="tl-line" style="position:absolute;top:17px;left:${x0}px;width:${Math.max(0, x1 - x0)}px;height:1px;background:var(--border);pointer-events:none;"></div>`;
+    }
+    return html + nodes.map((n) => {
+      const x = timeToX(n.year);
+      const sel = n.id === selectedId;
+      return `<div class="tl-node${sel ? ' is-sel' : ''}" data-id="${n.id}" style="position:absolute;left:${x}px;top:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translateX(-50%);${sel ? 'z-index:3;' : ''}">
+        <div style="width:10px;height:10px;border-radius:50%;background:${n.type === 'event' ? 'var(--fg)' : 'var(--accent)'};${sel ? 'outline:2px solid var(--accent);outline-offset:2px;' : ''}"></div>
+        <div style="font-size:10px;margin-top:4px;white-space:nowrap;color:var(--fg);">${n.title}</div>
+      </div>`;
+    }).join('');
+  }
+
+  renderStoryUI();
 }
