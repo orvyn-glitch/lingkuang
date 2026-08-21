@@ -1416,6 +1416,24 @@ body.is-idle .veil__grain {
   align-items: center;
   margin-bottom: var(--space-3);
 }
+/* 剧情线起止时间组：精度选择 + 时间编辑横排 */
+.tl__time-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tl__time-row .tl__time-edit { flex: 1; min-width: 120px; margin-bottom: 0; }
+.tl__time-row .tl__time-prec {
+  padding: 7px 8px;
+  font-size: var(--text-sm);
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+}
 .tl__time-edit input {
   flex: 1;
   min-width: 0;
@@ -3201,17 +3219,43 @@ body.is-idle .veil__grain {
         <label>剧情线名</label>
         <input type="text" id="story-modal-name" placeholder="如 主角线 / 女主线" />
       </div>
-      <div class="tl__modal-field" style="display:flex; gap:12px;">
-        <div style="flex:1">
-          <label>起始年份</label>
-          <input type="number" id="story-modal-start" step="any" />
-        </div>
-        <div style="flex:1">
-          <label>结束年份</label>
-          <input type="number" id="story-modal-end" step="any" />
+      <div class="tl__modal-field">
+        <label>起始时间</label>
+        <div class="tl__time-row">
+          <select id="story-start-prec" class="tl__time-prec">
+            <option value="year">年</option><option value="month">月</option>
+            <option value="day">日</option><option value="hour">时</option><option value="minute">分</option>
+          </select>
+          <div class="tl__time-edit">
+            <input type="text" id="story-start-year" placeholder="年" />
+            <input type="number" id="story-start-month" placeholder="月" min="1" max="12" style="display:none" />
+            <input type="number" id="story-start-day" placeholder="日" min="1" max="30" style="display:none" />
+          </div>
+          <div class="tl__time-edit">
+            <input type="number" id="story-start-hour" placeholder="时" min="0" max="23" style="display:none" />
+            <input type="number" id="story-start-minute" placeholder="分" min="0" max="59" style="display:none" />
+          </div>
         </div>
       </div>
-      <p class="tl__loop-hint">起止年份自由填写（支持精确时间，如 312.5 = 312年7月），不绑定节点；画线刷选时靠近节点会自动吸附到事件的精确时刻</p>
+      <div class="tl__modal-field">
+        <label>结束时间</label>
+        <div class="tl__time-row">
+          <select id="story-end-prec" class="tl__time-prec">
+            <option value="year">年</option><option value="month">月</option>
+            <option value="day">日</option><option value="hour">时</option><option value="minute">分</option>
+          </select>
+          <div class="tl__time-edit">
+            <input type="text" id="story-end-year" placeholder="年" />
+            <input type="number" id="story-end-month" placeholder="月" min="1" max="12" style="display:none" />
+            <input type="number" id="story-end-day" placeholder="日" min="1" max="30" style="display:none" />
+          </div>
+          <div class="tl__time-edit">
+            <input type="number" id="story-end-hour" placeholder="时" min="0" max="23" style="display:none" />
+            <input type="number" id="story-end-minute" placeholder="分" min="0" max="59" style="display:none" />
+          </div>
+        </div>
+      </div>
+      <p class="tl__loop-hint">起止时间自由填写，不绑定节点；画线刷选时靠近节点会自动吸附到事件的精确时刻</p>
       <p class="tl__loop-hint" id="story-modal-error" style="display:none; color: var(--danger);"></p>
     </div>
     <div class="tl__modal-actions">

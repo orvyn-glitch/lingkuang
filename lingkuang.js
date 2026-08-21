@@ -833,17 +833,82 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     updatePositions(); applyModeView(); applyPan();
   });
 
+  /* 小数年份 → 人类时间部件（年/精度/月/日/时/分）。
+     精度判定用"精确回算"法：从粗到细尝试各精度，取第一个 nodeToTime 回算误差归零的
+     （浮点下余数判断不可靠，回算验证才准）。与 nodeToTime 互逆。 */
+  function partsFromTime(t) {
+    if (!isFinite(t)) return { year: '', precision: 'year', month: '', day: '', hour: '', minute: '' };
+    var y = Math.floor(t + 1e-9);
+    var frac = t - y;
+    if (frac === 0) return { year: y, precision: 'year', month: '', day: '', hour: '', minute: '' };
+    var m = Math.floor(frac * 12) + 1;
+    if (m < 1) m = 1; if (m > 12) m = 12;
+    if (Math.abs(nodeToTime({ year: y, precision: 'month', month: m }) - t) < 1e-9) {
+      return { year: y, precision: 'month', month: m, day: '', hour: '', minute: '' };
+    }
+    var d = Math.round((frac * 12 - (m - 1)) * 30) + 1;
+    if (d < 1) d = 1; if (d > 30) d = 30;
+    if (Math.abs(nodeToTime({ year: y, precision: 'day', month: m, day: d }) - t) < 1e-9) {
+      return { year: y, precision: 'day', month: m, day: d, hour: '', minute: '' };
+    }
+    var h = Math.round(((frac * 12 - (m - 1)) * 30 - (d - 1)) * 24);
+    if (h < 0) h = 0; if (h > 23) h = 23;
+    if (Math.abs(nodeToTime({ year: y, precision: 'hour', month: m, day: d, hour: h }) - t) < 1e-9) {
+      return { year: y, precision: 'hour', month: m, day: d, hour: h, minute: '' };
+    }
+    var mi = Math.round((((frac * 12 - (m - 1)) * 30 - (d - 1)) * 24 - h) * 60);
+    if (mi < 0) mi = 0; if (mi > 59) mi = 59;
+    return { year: y, precision: 'minute', month: m, day: d, hour: h, minute: mi };
+  }
+  /* 时间输入组：精度切换显示月/日/时/分；返回 update 供外部触发 */
+  function bindTimeGroup(prefix) {
+    var prec = document.getElementById(prefix + '-prec');
+    var m = document.getElementById(prefix + '-month');
+    var d = document.getElementById(prefix + '-day');
+    var h = document.getElementById(prefix + '-hour');
+    var mi = document.getElementById(prefix + '-minute');
+    function update() {
+      var p = prec.value;
+      m.style.display = (p !== 'year') ? '' : 'none';
+      d.style.display = (p === 'day' || p === 'hour' || p === 'minute') ? '' : 'none';
+      h.style.display = (p === 'hour' || p === 'minute') ? '' : 'none';
+      mi.style.display = (p === 'minute') ? '' : 'none';
+    }
+    prec.addEventListener('change', update);
+    update();
+    return update;
+  }
+  var timeGroupUpdate = {};
+  timeGroupUpdate.start = bindTimeGroup('story-start');
+  timeGroupUpdate.end = bindTimeGroup('story-end');
+  function fillTimeGroup(prefix, parts) {
+    document.getElementById(prefix + '-year').value = parts.year;
+    document.getElementById(prefix + '-prec').value = parts.precision;
+    document.getElementById(prefix + '-month').value = (parts.month !== undefined && parts.month !== '') ? parts.month : '';
+    document.getElementById(prefix + '-day').value = (parts.day !== undefined && parts.day !== '') ? parts.day : '';
+    document.getElementById(prefix + '-hour').value = (parts.hour !== undefined && parts.hour !== '') ? parts.hour : '';
+    document.getElementById(prefix + '-minute').value = (parts.minute !== undefined && parts.minute !== '') ? parts.minute : '';
+    if (timeGroupUpdate[prefix]) timeGroupUpdate[prefix]();
+  }
+  /* 时间组 → 小数年份（复用 nodeToTime 的换算） */
+  function timeGroupToValue(prefix) {
+    return nodeToTime({
+      year: parseFloat(document.getElementById(prefix + '-year').value),
+      precision: document.getElementById(prefix + '-prec').value,
+      month: parseInt(document.getElementById(prefix + '-month').value, 10) || undefined,
+      day: parseInt(document.getElementById(prefix + '-day').value, 10) || undefined,
+      hour: parseInt(document.getElementById(prefix + '-hour').value, 10) || undefined,
+      minute: parseInt(document.getElementById(prefix + '-minute').value, 10) || undefined
+    });
+  }
+
   function openStoryRangeModal(presetStart, presetEnd) {
     var tl = timelines[activeId];
     if (!tl) return;
     document.getElementById('story-modal-title').textContent = '剧情线 · ' + tl.name;
     document.getElementById('story-modal-name').value = '';
-    var si = document.getElementById('story-modal-start');
-    var ei = document.getElementById('story-modal-end');
-    if (presetStart !== undefined && presetStart !== null) si.value = presetStart;
-    else si.value = '';
-    if (presetEnd !== undefined && presetEnd !== null) ei.value = presetEnd;
-    else ei.value = '';
+    fillTimeGroup('story-start', partsFromTime(presetStart));
+    fillTimeGroup('story-end', partsFromTime(presetEnd));
     storyModal.style.display = 'flex';
     document.getElementById('story-modal-name').focus();
   }
@@ -913,18 +978,16 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   function confirmStoryRange() {
     var tl = timelines[activeId];
     var errEl = document.getElementById('story-modal-error');
-    var si = document.getElementById('story-modal-start');
-    var ei = document.getElementById('story-modal-end');
-    var startY = parseFloat(si.value);
-    var endY = parseFloat(ei.value);
-    if (!isFinite(startY) || !isFinite(endY)) {
-      errEl.textContent = '请填写起始和结束年份（可刷选自动填入）';
+    var startT = timeGroupToValue('story-start');
+    var endT = timeGroupToValue('story-end');
+    if (!isFinite(startT) || !isFinite(endT)) {
+      errEl.textContent = '请填写起始和结束时间（可刷选自动填入）';
       errEl.style.display = '';
       return;
     }
     var name = document.getElementById('story-modal-name').value.trim() || ('剧情线 ' + (storyRangesOf(tl).length + 1));
     if (!Array.isArray(tl.storylines)) tl.storylines = [];
-    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, startYear: startY, endYear: endY });
+    tl.storylines.push({ id: 'sl_' + Date.now(), name: name, startYear: startT, endYear: endT });
     saveTimelines();
     storyModal.style.display = 'none';
     exitLineMode();
