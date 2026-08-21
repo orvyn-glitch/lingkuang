@@ -4520,10 +4520,12 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   });
 
   /* ── 地图画布编辑器（手绘矢量：按住拖拽画区域，自动平滑闭合）── */
-  var mapDrawMode = 'region';   /* 'region' 画区域 / 'marker' 放标记 */
+  var mapDrawMode = 'region';   /* 'region' 画区域 / 'cut' 切刀 / 'marker' 放标记 */
   var mapColor = '#9ec262';     /* 当前区域填充色 */
+  var mapSnap = false;          /* 吸附开关（贴已有边界） */
   var mapDrawPts = [];          /* 手绘采样点 */
   var mapDrawing = false;
+  var mapCutStart = null;       /* 切刀起点 */
   /* Catmull-Rom → 贝塞尔：采样点平滑成 SVG path（C 曲线） */
   function smoothPath(pts, close) {
     if (pts.length < 2) return '';
@@ -4546,9 +4548,11 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     /* 工具条 */
     var bar = '<div class="map-bar">'
       + '<button class="btn btn--ghost' + (mapDrawMode === 'region' ? ' is-on' : '') + '" id="map-mode-region" style="font-size:var(--text-xs);padding:5px 10px;">✏ 画区域</button>'
+      + '<button class="btn btn--ghost' + (mapDrawMode === 'cut' ? ' is-on' : '') + '" id="map-mode-cut" style="font-size:var(--text-xs);padding:5px 10px;">🔪 切刀</button>'
       + '<button class="btn btn--ghost' + (mapDrawMode === 'marker' ? ' is-on' : '') + '" id="map-mode-marker" style="font-size:var(--text-xs);padding:5px 10px;">📍 位置</button>'
       + '<input type="color" id="map-color" value="' + mapColor + '" style="width:28px;height:24px;border:none;background:none;cursor:pointer;" title="区域颜色" />'
-      + '<span style="font-size:var(--text-xs);color:var(--meta);margin-left:auto;">拖拽画区域（松手自动闭合）· 点画布放位置</span>'
+      + '<label style="font-size:var(--text-xs);color:var(--fg-2);display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="map-snap"' + (mapSnap ? ' checked' : '') + ' /> 吸附</label>'
+      + '<span style="font-size:var(--text-xs);color:var(--meta);margin-left:auto;">画区域/切刀：拖拽画线松手生效；📍 点画布放位置</span>'
       + '</div>';
     /* 画布 */
     var canvas = '<div class="map-canvas-wrap" style="flex:1;overflow:auto;position:relative;">'
@@ -4566,8 +4570,19 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     /* 模式切换 */
     var rBtn = document.getElementById('map-mode-region');
     var mBtn = document.getElementById('map-mode-marker');
-    if (rBtn) rBtn.onclick = function () { mapDrawMode = 'region'; rBtn.classList.add('is-on'); mBtn.classList.remove('is-on'); };
-    if (mBtn) mBtn.onclick = function () { mapDrawMode = 'marker'; mBtn.classList.add('is-on'); rBtn.classList.remove('is-on'); };
+    var cBtn = document.getElementById('map-mode-cut');
+    var snapIn = document.getElementById('map-snap');
+    function setMode(md) {
+      mapDrawMode = md;
+      mapCutStart = null;
+      if (rBtn) rBtn.classList.toggle('is-on', md === 'region');
+      if (mBtn) mBtn.classList.toggle('is-on', md === 'marker');
+      if (cBtn) cBtn.classList.toggle('is-on', md === 'cut');
+    }
+    if (rBtn) rBtn.onclick = function () { setMode('region'); };
+    if (mBtn) mBtn.onclick = function () { setMode('marker'); };
+    if (cBtn) cBtn.onclick = function () { setMode('cut'); };
+    if (snapIn) snapIn.onchange = function () { mapSnap = snapIn.checked; };
     var cIn = document.getElementById('map-color');
     if (cIn) cIn.oninput = function () { mapColor = cIn.value; };
     /* 画布交互：手绘区域 / 放标记 */
@@ -4576,12 +4591,20 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       svg.addEventListener('pointerdown', function (e) {
         var rect = svg.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (mapSnap) { var sp = snapToRegionPoint(x, y); if (sp) { x = sp[0]; y = sp[1]; } }
         if (mapDrawMode === 'marker') {
           prompt2('位置名称：').then(function (label) {
             m.markers.push({ id: 'mk' + Date.now(), x: x, y: y, label: label || '位置' });
             saveTimelines();
             drawMapMarkers();
           });
+          return;
+        }
+        if (mapDrawMode === 'cut') {
+          /* 切刀：起点 → 拖线预览 → 松手切分所有被穿过的区域 */
+          mapCutStart = [x, y];
+          mapDrawing = true;
+          mapDrawPts = [[x, y]];
           return;
         }
         mapDrawing = true;
@@ -4592,6 +4615,13 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         if (!mapDrawing) return;
         var rect = svg.getBoundingClientRect();
         var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (mapSnap) { var sp = snapToRegionPoint(x, y); if (sp) { x = sp[0]; y = sp[1]; } }
+        if (mapDrawMode === 'cut') {
+          mapDrawPts = [[mapCutStart[0], mapCutStart[1]], [x, y]];
+          var prev = document.getElementById('map-draw-preview');
+          if (prev) { prev.setAttribute('d', 'M ' + mapCutStart[0] + ' ' + mapCutStart[1] + ' L ' + x + ' ' + y); prev.style.display = ''; prev.style.fill = 'none'; prev.style.stroke = '#d9534f'; }
+          return;
+        }
         var last = mapDrawPts[mapDrawPts.length - 1];
         if (last && Math.abs(x - last[0]) < 3 && Math.abs(y - last[1]) < 3) return;
         mapDrawPts.push([x, y]);
@@ -4599,20 +4629,92 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         if (prev) {
           prev.setAttribute('d', smoothPath(mapDrawPts, true));
           prev.style.display = '';
+          prev.style.fill = 'rgba(158,194,98,0.15)';
+          prev.style.stroke = mapColor;
         }
       });
       svg.addEventListener('pointerup', function () {
         if (!mapDrawing) return;
         mapDrawing = false;
-        if (mapDrawPts.length < 4) { document.getElementById('map-draw-preview').style.display = 'none'; return; }
+        var prev = document.getElementById('map-draw-preview');
+        if (prev) prev.style.display = 'none';
+        if (mapDrawMode === 'cut') {
+          if (mapCutStart && mapDrawPts.length >= 2) {
+            var p1 = mapCutStart, p2 = mapDrawPts[mapDrawPts.length - 1];
+            var newRegions = [];
+            m.regions.forEach(function (r) {
+              var halves = (r.points && r.points.length >= 3) ? cutPolygon(r.points, p1, p2) : null;
+              if (halves) {
+                newRegions.push({ id: 'r' + Date.now() + 'a', name: r.name, points: halves[0], path: smoothPath(halves[0], true), fill: r.fill });
+                newRegions.push({ id: 'r' + Date.now() + 'b', name: r.name, points: halves[1], path: smoothPath(halves[1], true), fill: r.fill });
+              } else {
+                newRegions.push(r);
+              }
+            });
+            m.regions = newRegions;
+            saveTimelines();
+            drawMapRegions();
+          }
+          mapCutStart = null;
+          mapDrawPts = [];
+          return;
+        }
+        if (mapDrawPts.length < 4) { mapDrawPts = []; return; }
         var region = { id: 'r' + Date.now(), name: '', path: smoothPath(mapDrawPts, true), fill: mapColor, points: mapDrawPts.map(function (p) { return [Math.round(p[0]), Math.round(p[1])]; }) };
         m.regions.push(region);
         saveTimelines();
         drawMapRegions();
-        document.getElementById('map-draw-preview').style.display = 'none';
+        mapDrawPts = [];
       });
     }
     renderFileTree();
+  }
+  /* 吸附：点靠近已有区域的顶点/边界点 → 吸附到该点 */
+  function snapToRegionPoint(x, y, thr) {
+    var bd = thr || 10, best = null;
+    (activeMap.regions || []).forEach(function (r) {
+      (r.points || []).forEach(function (p) {
+        var d = Math.sqrt((p[0] - x) * (p[0] - x) + (p[1] - y) * (p[1] - y));
+        if (d < bd) { bd = d; best = [p[0], p[1]]; }
+      });
+    });
+    return best;
+  }
+  /* 切刀：直线 p1-p2 把多边形切成左右两半（返回两个多边形，切不动返回 null） */
+  function cutPolygon(poly, p1, p2) {
+    function side(p) {
+      var v = (p2[0] - p1[0]) * (p[1] - p1[1]) - (p2[1] - p1[1]) * (p[0] - p1[0]);
+      return v > 1e-9 ? 1 : v < -1e-9 ? -1 : 0;
+    }
+    function inter(a, b) {
+      var x1 = a[0], y1 = a[1], x2 = b[0], y2 = b[1], x3 = p1[0], y3 = p1[1], x4 = p2[0], y4 = p2[1];
+      var den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+      if (Math.abs(den) < 1e-9) return null;
+      var t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+      return [x1 + t * (x2 - x1), y1 + t * (y2 - y1)];
+    }
+    var left = [], right = [];
+    for (var i = 0; i < poly.length; i++) {
+      var a = poly[i], b = poly[(i + 1) % poly.length];
+      var sa = side(a), sb = side(b);
+      if (sa >= 0) left.push(a);
+      if (sa <= 0) right.push(a);
+      if (sa !== 0 && sb !== 0 && sa !== sb) {
+        var ip = inter(a, b);
+        if (ip) { left.push(ip); right.push(ip); }
+      }
+    }
+    function dedup(pts) {
+      var o = [];
+      for (var j = 0; j < pts.length; j++) {
+        var p = pts[j];
+        if (!o.length || Math.abs(o[o.length - 1][0] - p[0]) > 1e-6 || Math.abs(o[o.length - 1][1] - p[1]) > 1e-6) o.push(p);
+      }
+      return o;
+    }
+    var l = dedup(left), r = dedup(right);
+    if (l.length < 3 || r.length < 3) return null;
+    return [l, r];
   }
   /* 画区域 */
   function drawMapRegions() {
