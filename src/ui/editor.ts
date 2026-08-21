@@ -3,6 +3,7 @@
 import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { saveNodeDoc, addEntity } from '../store/actions';
+import { mdRender } from './detail';
 import type { EntityType } from '../store/types';
 
 export function renderEditor(store: Store, host: HTMLElement): void {
@@ -20,13 +21,17 @@ export function renderEditor(store: Store, host: HTMLElement): void {
       </div>
       <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
         <div id="ed-title" style="padding:8px 14px;border-bottom:1px solid var(--border-soft);font-size:var(--text-sm);color:var(--fg-2);">选择左侧节点/实体开始编辑（自动保存）</div>
-        <textarea id="ed-doc" placeholder="文稿（#字段：值 每行一个 + 正文）…" style="flex:1;width:100%;background:var(--surface);border:none;color:var(--fg);padding:12px 14px;font-size:var(--text-sm);outline:none;resize:none;font-family:var(--font-mono);line-height:1.7;"></textarea>
+        <div style="flex:1;display:flex;min-height:0;">
+          <textarea id="ed-doc" placeholder="文稿（#字段：值 每行一个 + 正文）…" style="flex:1;width:50%;background:var(--surface);border:none;color:var(--fg);padding:12px 14px;font-size:var(--text-sm);outline:none;resize:none;font-family:var(--font-mono);line-height:1.7;"></textarea>
+          <div id="ed-preview" style="flex:1;width:50%;border-left:1px solid var(--border-soft);padding:12px 14px;font-size:var(--text-sm);color:var(--fg);line-height:1.7;overflow:auto;"></div>
+        </div>
         <div id="ed-status" style="padding:4px 14px;border-top:1px solid var(--border-soft);font-size:var(--text-xs);color:var(--fg-2);"></div>
       </div>
     </div>`;
 
   const sidebar = host.querySelector('#ed-sidebar') as HTMLElement;
   const docBox = host.querySelector('#ed-doc') as HTMLTextAreaElement;
+  const preview = host.querySelector('#ed-preview') as HTMLElement;
   const titleEl = host.querySelector('#ed-title') as HTMLElement;
   const status = host.querySelector('#ed-status') as HTMLElement;
   const tabTl = host.querySelector('#ed-tab-tl') as HTMLElement;
@@ -139,7 +144,10 @@ export function renderEditor(store: Store, host: HTMLElement): void {
     });
   }
 
-  /* 失焦保存 */
+  /* 失焦保存 + 实时预览 */
+  docBox.addEventListener('input', () => {
+    preview.innerHTML = mdRender(docBox.value);
+  });
   docBox.addEventListener('blur', () => {
     if (tab === 'tl' && currentNodeId && currentTlId) {
       saveNodeDoc(store, currentTlId, currentNodeId, docBox.value);

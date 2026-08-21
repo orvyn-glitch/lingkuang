@@ -642,21 +642,30 @@ export function mountTimeline(
     });
   }
 
-  /* ══════════ 非线性模式（按序列顺序均匀横排）══════════ */
+  /* ══════════ 非线性模式（按序列顺序均匀横排 + 类型泳道）══════════ */
   function renderNonlinear() {
     const tl = timeline();
     if (!tl || !nonlinearMode) return;
     const nodes = tl.nodes;
     if (!nodes.length) return;
-    const n = nodes.length;
-    const pitch = Math.max(24, (wrap.clientWidth - 100) / n);
+    const lanes = ['event', 'plot', 'place'];
+    const inLane = (n: TimelineNode, l: string) => (l === 'event' ? n.type === 'event' : l === 'plot' ? n.type === 'plot' : n.type === 'place' || n.type === 'year');
+    let laneCounts: Record<string, number> = {};
+    lanes.forEach((l) => { laneCounts[l] = nodes.filter((n) => inLane(n, l)).length; });
+    const maxCount = Math.max(1, ...Object.values(laneCounts));
+    const pitch = Math.max(24, (wrap.clientWidth - 100) / maxCount);
+    const laneY: Record<string, number> = {};
+    let y = 40;
+    lanes.forEach((l) => { laneY[l] = y; y += 90; });
+    const laneEls = lanes.map((l) => `<div style="position:absolute;left:0;right:0;top:${laneY[l] - 14}px;height:1px;background:var(--border-soft);"></div><div style="position:absolute;left:4px;top:${laneY[l] - 20}px;font-size:9px;color:var(--fg-2);">${l === 'event' ? '事件' : l === 'plot' ? '角色' : '地点'}</div>`).join('');
+    const counters: Record<string, number> = { event: 0, plot: 0, place: 0 };
     track.innerHTML =
-      '<div class="tl-line"></div>' +
+      `<div class="tl-line" style="left:0;right:0;"></div>` + laneEls +
       nodes
-        .map((node, i) => {
-          const x = 50 + i * pitch;
-          const sel = node.id === selectedId;
-          return nodeHtml(node, x, sel) + `<div style="font-size:8px;color:var(--fg-2);position:absolute;top:calc(50% + 16px);left:50%;transform:translateX(-50%);">${node.year}</div>`;
+        .map((node) => {
+          const lane = lanes.find((l) => inLane(node, l)) ?? 'event';
+          const x = 50 + counters[lane]++ * pitch;
+          return nodeHtml(node, x, node.id === selectedId) + `<div style="font-size:8px;color:var(--fg-2);position:absolute;top:${laneY[lane] + 12}px;left:${x}px;transform:translateX(-50%);">${node.year}</div>`;
         })
         .join('');
     renderScale();

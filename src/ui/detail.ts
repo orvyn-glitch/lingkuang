@@ -119,7 +119,7 @@ function makeFieldCard(k: string, v: string): HTMLElement {
 }
 
 /** 轻量 Markdown 渲染（**粗体** / #标题 / -列表 / 链接 / 代码，安全转义） */
-function mdRender(src: string): string {
+export function mdRender(src: string): string {
   return escapeHtml(src)
     .split('\n')
     .map((line) => {
