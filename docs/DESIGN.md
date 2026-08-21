@@ -9,6 +9,12 @@
 
 - **单 HTML + 大 IIFE**（index.html + lingkuang.js ~5000 行），Electron 壳（main.js IPC 读写文件）
 - 工具名：**世界沙盘**（原"世界观时间线"，2026-08-21 改名，时间线+地图融合方向）
+- **重构规格（2026-08-21 用户确认）**：
+  - **世界沙盘布局**：时间线与地图**并排显示**（同屏，上时间线下地图或左右，布局可配）
+  - **世界栏** = 顶部世界标签栏（世界观 tab，当前存放世界的那个栏）；「世界栏 vs 工具栏」的分区：世界栏放世界观相关（时间线/节点/实体/地图/文稿），工具栏放操作工具（灵感触发器/联想/通用编辑/AI）
+  - **重构 = 全功能占位**：所有未做功能先放占位（按钮/面板骨架），UI 一次铺全，功能逐个填
+  - **存储 = 多文件**：每节点/实体/地图独立文件（VS Code 式目录），重构时从单 JSON 迁移
+- **创建不打断原则**（2026-08-21）：创建类操作直接在画布完成（笔刷直接画→默认值→后期面板改），不弹窗打断；循环/剧情线/区域统一归入**笔刷工具**，节点单独工具
 - 数据：`worldsets = { 世界观名: { timelines, order, docs, entityTypes?, entities?, timeCursor? } }`
 - `timelines = { 时间线id: { id, name, absOffset, nodes[], loops[], storylines[] } }`
 - `nodes = [{ id, title, year, precision, type: event/plot/year/loop-boundary, desc, tag, people[], places[], doc?, docId?, entityId? }]`
