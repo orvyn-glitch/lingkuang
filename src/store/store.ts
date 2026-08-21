@@ -8,7 +8,11 @@ export interface Store {
   subscribe(fn: (store: Store) => void): () => void;
   setActiveWorld(name: string): void;
   setActiveTimeline(id: string): void;
-  update(fn: (data: WorldData) => void): void;
+  update(fn: (data: WorldData) => void, opts?: { undo?: boolean }): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
 }
 
 function createStore(initial: WorldData): Store {
@@ -16,6 +20,10 @@ function createStore(initial: WorldData): Store {
   let activeWorld = Object.keys(initial.worldsets)[0] ?? '';
   let activeTimeline = '';
   const listeners = new Set<(s: Store) => void>();
+  /* 撤销/重做：JSON 快照栈（上限 100） */
+  const undoStack: WorldData[] = [];
+  const redoStack: WorldData[] = [];
+  const clone = (d: WorldData): WorldData => JSON.parse(JSON.stringify(d)) as WorldData;
 
   const store: Store = {
     get data() { return data; },
@@ -38,10 +46,29 @@ function createStore(initial: WorldData): Store {
       activeTimeline = id;
       listeners.forEach((fn) => fn(store));
     },
-    update(fn) {
+    update(fn, opts) {
+      if (opts?.undo !== false) {
+        undoStack.push(clone(data));
+        if (undoStack.length > 100) undoStack.shift();
+        redoStack.length = 0;
+      }
       fn(data);
       listeners.forEach((l) => l(store));
     },
+    undo() {
+      if (!undoStack.length) return;
+      redoStack.push(clone(data));
+      data = undoStack.pop()!;
+      listeners.forEach((l) => l(store));
+    },
+    redo() {
+      if (!redoStack.length) return;
+      undoStack.push(clone(data));
+      data = redoStack.pop()!;
+      listeners.forEach((l) => l(store));
+    },
+    canUndo() { return undoStack.length > 0; },
+    canRedo() { return redoStack.length > 0; },
   };
   return store;
 }

@@ -27,11 +27,14 @@ export function addNode(store: Store, tlId: string, node: Partial<TimelineNode>)
   return id;
 }
 
-export function saveNodeDoc(store: Store, tlId: string, nodeId: string, doc: string) {
-  store.update((d) => {
-    const n = d.worldsets[store.activeWorld]?.timelines[tlId]?.nodes.find((x) => x.id === nodeId);
-    if (n) n.doc = doc;
-  });
+export function saveNodeDoc(store: Store, tlId: string, nodeId: string, doc: string, opts?: { undo?: boolean }) {
+  store.update(
+    (d) => {
+      const n = d.worldsets[store.activeWorld]?.timelines[tlId]?.nodes.find((x) => x.id === nodeId);
+      if (n) n.doc = doc;
+    },
+    opts
+  );
 }
 
 export function addEntity(store: Store, entity: Partial<Entity>): string {
@@ -57,10 +60,13 @@ export function addMap(store: Store, name: string): string {
 }
 
 export function setTimeCursor(store: Store, t: number | null) {
-  store.update((d) => {
-    const ws = d.worldsets[store.activeWorld];
-    if (ws) ws.timeCursor = t;
-  });
+  store.update(
+    (d) => {
+      const ws = d.worldsets[store.activeWorld];
+      if (ws) ws.timeCursor = t;
+    },
+    { undo: false }   /* 指针拖动高频，不进撤销栈 */
+  );
 }
 
 export function getTimeline(store: Store, tlId: string): Timeline | undefined {

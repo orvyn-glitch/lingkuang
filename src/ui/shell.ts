@@ -92,7 +92,9 @@ function renderTimelineTabs(store: Store): void {
     )
     .join('');
   head.innerHTML =
-    `<span class="lk-pane-title">世界沙盘 · 时间线</span><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new" title="新建时间线">＋</button></span><button class="lk-tl-tab is-new" id="lk-node-new" title="新建节点">＋节点</button>`;
+    `<span class="lk-pane-title">世界沙盘 · 时间线</span><button class="lk-tl-tab is-new" id="lk-undo" title="撤销 (Ctrl+Z)">↶</button><button class="lk-tl-tab is-new" id="lk-redo" title="重做 (Ctrl+Y)">↷</button><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new" title="新建时间线">＋</button></span><button class="lk-tl-tab is-new" id="lk-node-new" title="新建节点">＋节点</button>`;
+  head.querySelector('#lk-undo')?.addEventListener('click', () => store.undo());
+  head.querySelector('#lk-redo')?.addEventListener('click', () => store.redo());
   head.querySelectorAll('.lk-tl-tab[data-tl]').forEach((el) => {
     el.addEventListener('click', () => store.setActiveTimeline((el as HTMLElement).dataset.tl!));
   });

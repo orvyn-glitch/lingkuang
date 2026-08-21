@@ -27,6 +27,20 @@ async function main() {
   });
   const host = document.getElementById('app')!;
   renderShell(store, host);
+
+  /* 撤销/重做快捷键（避开输入框焦点） */
+  window.addEventListener('keydown', (e) => {
+    const tag = (document.activeElement as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) store.redo();
+      else store.undo();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      store.redo();
+    }
+  });
 }
 
 main();

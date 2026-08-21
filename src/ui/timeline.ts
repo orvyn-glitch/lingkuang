@@ -169,7 +169,7 @@ export function mountTimeline(
         if (n) {
           n.year = Math.round(xToTime(mx) * 10) / 10;
           render();
-          saveNodeDoc(store, tl!.id, n.id, n.doc ?? '');   // 触发持久化
+          saveNodeDoc(store, tl!.id, n.id, n.doc ?? '', { undo: false });   // 拖动中间态不进撤销
         }
       }
       return;
