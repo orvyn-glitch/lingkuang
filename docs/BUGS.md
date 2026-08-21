@@ -5,6 +5,11 @@
 
 ## 时间线
 
+- [ ] **剧情线起止时间输入 UI 截断**（2026-08-21）
+  - 现象：数值（年/月/日/时/分输入框）因布局窄被截断，看不清完整数字。
+  - 决定：功能已确认 OK，**UI 问题和总设计一起修**（用户明确后置，不单独改）。
+  - 位置：story-modal 的起止时间组（`.tl__time-row` / `.tl__time-edit`）。
+
 - [ ] **撤销（Ctrl+Z）未修好**（2026-08-20 用户反馈）
   - 现状：`lingkuang.js` 已有 undoStack/redo（pushUndo / undoTimeline / undoRedoStack），但用户反馈仍不好用。
   - 疑点：编辑面板内联编辑（title/desc contenteditable）、拖动年份、people/places chips 等路径是否全部 pushUndo；渲染重建后撤销/重做状态；redo 栈正确性。
