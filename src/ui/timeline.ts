@@ -89,7 +89,7 @@ export function mountTimeline(
       const yrs = nodes.map((n) => n.year);
       const lo = Math.min(...yrs), hi = Math.max(...yrs);
       const x0 = timeToX(lo), x1 = timeToX(hi);
-      lineHtml = `<div class="tl-line" style="position:absolute;top:17px;left:${x0}px;width:${Math.max(0, x1 - x0)}px;height:1px;background:var(--border);pointer-events:none;"></div>`;
+      lineHtml = `<div class="tl-line" style="left:${x0}px;width:${Math.max(0, x1 - x0)}px;top:15.5px;"></div>`;
     }
     track.innerHTML =
       lineHtml +
@@ -421,7 +421,7 @@ export function mountTimeline(
       const yrs = nodes.map((n) => n.year);
       const lo = Math.min(...yrs), hi = Math.max(...yrs);
       const x0 = timeToX(lo), x1 = timeToX(hi);
-      html = `<div class="tl-line" style="position:absolute;top:17px;left:${x0}px;width:${Math.max(0, x1 - x0)}px;height:1px;background:var(--border);pointer-events:none;"></div>`;
+      html = `<div class="tl-line" style="left:${x0}px;width:${Math.max(0, x1 - x0)}px;top:15.5px;"></div>`;
     }
     return html + nodes.map((n) => {
       const x = timeToX(n.year);
@@ -600,7 +600,7 @@ export function mountTimeline(
     const n = nodes.length;
     const pitch = Math.max(24, (wrap.clientWidth - 100) / n);
     track.innerHTML =
-      `<div class="tl-line" style="position:absolute;top:17px;left:0;right:0;height:1px;background:var(--border);pointer-events:none;"></div>` +
+      `<div class="tl-line" style="left:0;right:0;top:15.5px;"></div>` +
       nodes
         .map((node, i) => {
           const x = 50 + i * pitch;

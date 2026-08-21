@@ -172,7 +172,7 @@ body {
   overflow: auto;
 }
 
-/* ══════════ 画布（还原 legacy 时间线 UI）══════════ */
+/* ══════════ 画布：节点 + 时间线照搬 legacy；循环/范围条/标尺重新设计 ══════════ */
 .tl__n {
   position: absolute;
   width: 26px; height: 26px;
@@ -206,35 +206,38 @@ body {
   pointer-events: none;
   text-shadow: 0 1px 0 var(--bg);
 }
-/* 循环框（虚线角标） */
+/* 时间线（照搬 legacy .tl__axis）：3px 粗结构线，两端 fade，圆端 */
+.tl-line {
+  position: absolute;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, rgba(58, 58, 52, 0.55) 24px, rgba(58, 58, 52, 0.55) calc(100% - 24px), transparent);
+  pointer-events: none;
+}
+/* 循环（重新设计：AE 风简洁——顶部实色条 + 淡 tint，无虚线角标） */
 .tl__loop {
   position: absolute;
-  border: 1px dashed rgba(158, 194, 98, 0.45);
   top: 0; bottom: 0;
+  background: rgba(158, 194, 98, 0.05);
+  border-top: 2px solid rgba(158, 194, 98, 0.8);
   cursor: pointer;
   pointer-events: auto;
   z-index: 1;
+  transition: background 120ms ease;
 }
-.tl__loop::before, .tl__loop::after {
-  content: '';
-  position: absolute;
-  width: 8px; height: 8px;
-  border: 1px solid var(--accent);
-}
-.tl__loop::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
-.tl__loop::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
-.tl__loop:hover { border-color: var(--accent); background: rgba(158, 194, 98, 0.06); }
+.tl__loop:hover { background: rgba(158, 194, 98, 0.12); }
 .tl__loop .tl__loop-badge {
   position: absolute;
-  top: 0;
+  top: 2px;
   right: 0;
   font-size: 9px;
+  font-family: var(--font-mono);
   color: var(--accent);
   background: var(--chrome);
-  padding: 1px 5px;
+  padding: 0 5px;
   border-radius: 0 0 0 2px;
 }
-/* 剧情线范围条（顶部色带） */
+/* 剧情线范围条（重新设计：顶部细色带） */
 .tl__storybar {
   position: absolute;
   top: 0;
@@ -249,7 +252,7 @@ body {
   opacity: 0.75;
 }
 .tl__storybar.is-active .tl__storybar-seg { opacity: 1; }
-/* 标尺 */
+/* 标尺（重新设计：简化刻度） */
 .tl__axis-tick {
   position: absolute;
   top: 0;
@@ -265,7 +268,7 @@ body {
   color: var(--fg-2);
   white-space: nowrap;
 }
-/* 幽灵节点（循环重复段） */
+/* 幽灵节点（循环重复段，半透明） */
 .tl__ghost {
   position: absolute;
   opacity: 0.35;
