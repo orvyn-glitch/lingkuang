@@ -3061,8 +3061,9 @@ body.is-idle .veil__grain {
             <button class="tl__detail-close" id="d-close" title="收起">×</button>
           </div>
           <div class="tl__detail-time" id="d-time"></div>
+          <!-- 时间编辑已归入文稿（#时间：312年7月），面板只读显示 -->
           <div class="tl__detail-sec-title">时间</div>
-          <div class="tl__time-edit">
+          <div class="tl__time-edit" style="display:none;">
             <select id="d-precision">
               <option value="year">年</option>
               <option value="month">月</option>
@@ -3071,12 +3072,12 @@ body.is-idle .veil__grain {
               <option value="minute">分</option>
             </select>
           </div>
-          <div class="tl__time-edit">
+          <div class="tl__time-edit" style="display:none;">
             <input type="text" id="d-year" placeholder="年" />
             <input type="number" id="d-month" placeholder="月" min="1" max="12" />
             <input type="number" id="d-day" placeholder="日" min="1" max="30" />
           </div>
-          <div class="tl__time-edit">
+          <div class="tl__time-edit" style="display:none;">
             <input type="number" id="d-hour" placeholder="时" min="0" max="23" />
             <input type="number" id="d-minute" placeholder="分" min="0" max="59" />
           </div>

@@ -237,12 +237,51 @@
   function parseDoc(doc) {
     var fields = [];
     var bodyLines = [];
+    var timeText = null;
     String(doc || '').split('\n').forEach(function (line, idx) {
       var m = line.match(/^#\s*([^：:]+)[：:]\s*(.*)$/);
-      if (m && m[1].trim()) fields.push({ k: m[1].trim(), v: m[2].trim(), line: idx });
-      else bodyLines.push(line);
+      if (m && m[1].trim()) {
+        if (m[1].trim() === '时间') timeText = m[2].trim();
+        fields.push({ k: m[1].trim(), v: m[2].trim(), line: idx });
+      } else bodyLines.push(line);
     });
-    return { fields: fields, body: bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+    return { fields: fields, body: bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trim(), timeText: timeText };
+  }
+  /* 时间文本解析："312" / "312年7月" / "312年7月15日" / "...14时30分" */
+  function parseTimeText(text) {
+    var t = String(text || '').trim();
+    var m = t.match(/^(-?\d+)(?:年(\d{1,2})月(?:(\d{1,2})日(?:(\d{1,2})时(?:(\d{1,2})分)?)?)?)?$/);
+    if (!m) return null;
+    var y = parseFloat(m[1]);
+    var mo = m[2] ? parseInt(m[2], 10) : undefined;
+    var d = m[3] ? parseInt(m[3], 10) : undefined;
+    var h = m[4] ? parseInt(m[4], 10) : undefined;
+    var mi = m[5] ? parseInt(m[5], 10) : undefined;
+    return {
+      year: y,
+      precision: mi !== undefined ? 'minute' : h !== undefined ? 'hour' : d !== undefined ? 'day' : mo !== undefined ? 'month' : 'year',
+      month: mo, day: d, hour: h, minute: mi
+    };
+  }
+  /* 节点时间 → 时间文本（"312年7月15日"） */
+  function fmtTimeText(t) {
+    var p = partsFromTime(t);
+    var s = '' + p.year;
+    if (p.precision === 'month') s += '年' + p.month + '月';
+    else if (p.precision === 'day') s += '年' + p.month + '月' + p.day + '日';
+    else if (p.precision === 'hour') s += '年' + p.month + '月' + p.day + '日' + p.hour + '时';
+    else if (p.precision === 'minute') s += '年' + p.month + '月' + p.day + '日' + p.hour + '时' + p.minute + '分';
+    return s;
+  }
+  /* 从文稿同步节点时间（#时间 行） */
+  function syncNodeTimeFromDoc(n) {
+    var parsed = parseDoc(n.doc);
+    if (!parsed.timeText) return;
+    var t = parseTimeText(parsed.timeText);
+    if (!t) return;
+    n.year = t.year;
+    n.precision = t.precision;
+    n.month = t.month; n.day = t.day; n.hour = t.hour; n.minute = t.minute;
   }
   /* 节点/实体打开文稿编辑器（面板内 textarea，失焦保存并刷新面板） */
   function openDocEditor(target, afterSave) {
@@ -2018,32 +2057,44 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     function renderNodeDoc() {
       if (!docFieldsEl || !docBodyEl) return;
       var parsed = parseDoc(n.doc);
+      var tl = timelines[activeId];
       docFieldsEl.innerHTML = '';
-      parsed.fields.forEach(function (f, i) {
-        var card = document.createElement('div');
-        card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
-        var head = document.createElement('div');
-        head.style.cssText = 'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
-        head.textContent = f.k;
-        var val = document.createElement('div');
-        val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
-        val.textContent = f.v;
-        val.contentEditable = 'true';
-        val.title = '点击修改';
-        val.addEventListener('blur', function () {
-          var newV = val.textContent;
-          if (newV === f.v) return;
+      /* 时间卡片：值始终=节点当前时间（fmtTimeText）；编辑 → 解析时间文本 → 同步节点 + 写回 doc 行 */
+      var timeCard = makeFieldCard('时间', fmtTimeText(absYearOf(n, tl)), function (newV) {
+        var t = parseTimeText(newV);
+        if (!t) return false;
+        n.year = t.year; n.precision = t.precision;
+        n.month = t.month; n.day = t.day; n.hour = t.hour; n.minute = t.minute;
+        /* 写回 doc：#时间 行替换；无则插入顶部 */
+        var lines = String(n.doc || '').split('\n');
+        var li = -1;
+        lines.forEach(function (l, i) { if (/^#\s*时间[：:]/.test(l)) li = i; });
+        if (li >= 0) lines[li] = '#时间：' + newV;
+        else lines.unshift('#时间：' + newV);
+        n.doc = lines.join('\n');
+        saveTimelines();
+        /* 移动节点到新年份 */
+        var el = null;
+        nodesEl.querySelectorAll('.tl__n').forEach(function (e) { if (e._node === n) el = e; });
+        if (el) {
+          updatePositions();
+        }
+        return true;
+      });
+      docFieldsEl.appendChild(timeCard);
+      parsed.fields.forEach(function (f) {
+        if (f.k === '时间') return;   /* 时间卡片已单独渲染 */
+        var card = makeFieldCard(f.k, f.v, function (newV) {
           var lines = String(n.doc || '').split('\n');
-          var li = f.line;
-          if (li >= 0 && li < lines.length) {
-            lines[li] = '#' + f.k + '：' + newV;
+          if (f.line >= 0 && f.line < lines.length) {
+            lines[f.line] = '#' + f.k + '：' + newV;
             n.doc = lines.join('\n');
             f.v = newV;
             saveTimelines();
+            return true;
           }
+          return false;
         });
-        card.appendChild(head);
-        card.appendChild(val);
         docFieldsEl.appendChild(card);
       });
       if (!parsed.fields.length) {
@@ -2052,12 +2103,37 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       docBodyEl.textContent = parsed.body || '';
       docBodyEl.style.display = parsed.body ? '' : 'none';
     }
+    /* 字段卡片：小标题 + contenteditable 内容框（快捷编辑回写 doc） */
+    function makeFieldCard(k, v, onCommit) {
+      var card = document.createElement('div');
+      card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
+      var head = document.createElement('div');
+      head.style.cssText = 'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
+      head.textContent = k;
+      var val = document.createElement('div');
+      val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
+      val.textContent = v;
+      val.contentEditable = 'true';
+      val.title = '点击修改';
+      val.addEventListener('blur', function () {
+        var newV = val.textContent;
+        if (newV === v) return;
+        if (onCommit(newV)) { v = newV; }
+        else { val.textContent = v; }
+      });
+      card.appendChild(head);
+      card.appendChild(val);
+      return card;
+    }
     renderNodeDoc();
     if (docEditWrap) docEditWrap.style.display = 'none';
     if (docBtn) {
       docBtn.onclick = function () {
         openDocEditor(n, function () {
           docEditWrap.style.display = 'none';
+          syncNodeTimeFromDoc(n);   /* 原文稿保存 → 同步节点时间 */
+          saveTimelines();
+          updatePositions();
           renderNodeDoc();
         });
       };
