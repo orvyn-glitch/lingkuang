@@ -551,9 +551,35 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   var timeCursor = null;              /* 当前世界观的时间指针（小数年份；null=隐藏） */
   var timeCursorEl = document.getElementById('tl-time-cursor');
   var cursorBtn = document.getElementById('tl-cursor-btn');
+  var cursorScrub = null;            /* 指针拖动标记（左键默认工具） */
+  var spaceDown = false;             /* 空格=平移画布（默认左键是指针） */
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !(e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]'))) {
+      spaceDown = true;
+    }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.code === 'Space') spaceDown = false;
+  });
   function loadTimeCursor() {
     var ws = worldsets[activeWorldset];
-    timeCursor = (ws && isFinite(ws.timeCursor)) ? ws.timeCursor : null;
+    var saved = (ws && isFinite(ws.timeCursor)) ? ws.timeCursor : null;
+    if (saved !== null) { timeCursor = saved; }
+    else {
+      /* 默认启用：放在当前时间线中间 */
+      var tl = timelines[activeId];
+      var lo = Infinity, hi = -Infinity;
+      (tl && Array.isArray(tl.nodes) ? tl.nodes : []).forEach(function (n) {
+        var y = absYearOf(n, tl);
+        if (y < lo) lo = y;
+        if (y > hi) hi = y;
+      });
+      timeCursor = isFinite(lo) ? (lo + hi) / 2 : 0;
+    }
+    if (typeof syncCursorBtn === 'function') syncCursorBtn();
+  }
+  function syncCursorBtn() {
+    if (cursorBtn) cursorBtn.classList.toggle('is-on', timeCursor !== null);
   }
   function saveTimeCursor() {
     var ws = worldsets[activeWorldset];
@@ -561,6 +587,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     if (timeCursor === null) delete ws.timeCursor;
     else ws.timeCursor = timeCursor;
     saveTimelines();
+    syncCursorBtn();
   }
   /* 指针视口位置（随 pan 跟随） */
   function updateTimeCursorPos() {
@@ -3590,6 +3617,17 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       e.preventDefault();
       return;
     }
+    /* 默认工具 = 时间指针：点击/拖动空白设置当前时间；空格+拖拽 = 平移画布 */
+    if (!spaceDown && !e.target.closest('.tl__n, .tl__loop, .tl__storybar, .tl__time-cursor-handle')) {
+      cursorScrub = { startX: e.clientX };
+      var rect0b = stage.getBoundingClientRect();
+      var mx0 = e.clientX - rect0b.left;
+      timeCursor = xToTime(mx0 - panX);
+      updateTimeCursorPos();
+      applyTimeCursorState();
+      e.preventDefault();
+      return;
+    }
     dragging = true; moved = false;
     dragStartX = e.clientX;
     lastDragX = e.clientX;
@@ -3607,6 +3645,15 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         brushSel.style.left = l + 'px';
         brushSel.style.width = Math.abs(vx - brushDrag.startVx) + 'px';
       }
+      return;
+    }
+    /* 时间指针拖动：实时更新当前时间 */
+    if (cursorScrub) {
+      var rect2 = stage.getBoundingClientRect();
+      var mx2 = e.clientX - rect2.left;
+      timeCursor = xToTime(mx2 - panX);
+      updateTimeCursorPos();
+      applyTimeCursorState();
       return;
     }
     /* zoom drag only while the RIGHT button is physically held — a stale
@@ -3699,6 +3746,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     track.classList.remove('is-panning');
     if (document.pointerLockElement) document.exitPointerLock();
     if (typeof finishBrush === 'function') finishBrush();   /* 刷子松手：框选 → 剧情范围 */
+    if (cursorScrub) { cursorScrub = null; if (typeof saveTimeCursor === 'function') saveTimeCursor(); }
   }
   window.addEventListener('pointerup', endDrag);
   window.addEventListener('pointercancel', endDrag);
