@@ -28,6 +28,7 @@ export function renderShell(store: Store, host: HTMLElement): void {
               <div class="lk-pane-head">地图 <span class="lk-ph">（占位）</span></div>
               <div class="lk-pane-body lk-placeholder">地图视图 · Leaflet 重构</div>
             </div>
+            <div class="lk-module-view" id="lk-module-view" style="display:none;"></div>
           </section>
         </div>
         <aside class="lk-tool-host" id="lk-tool-host"></aside>
@@ -123,7 +124,24 @@ function renderToolbar(store: Store): void {
     el.addEventListener('click', () => {
       bar.querySelectorAll('.lk-tool-btn').forEach((b) => b.classList.remove('is-active'));
       el.classList.add('is-active');
-      openTool((el as HTMLElement).dataset.tool!, toolHost, store);
+      const id = (el as HTMLElement).dataset.tool!;
+      const moduleView = document.getElementById('lk-module-view');
+      const sandbox = document.getElementById('lk-sandbox');
+      const toolHost = document.getElementById('lk-tool-host');
+      if (id === 'sandbox') {
+        /* 世界沙盘：恢复沙盘视图（隐藏模块覆盖） */
+        if (moduleView) { moduleView.style.display = 'none'; moduleView.innerHTML = ''; }
+        if (toolHost) toolHost.innerHTML = '';
+        sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = ''));
+        return;
+      }
+      /* 其他模块：全屏覆盖沙盒（独立工具，与沙盘无并列关系） */
+      if (moduleView) {
+        moduleView.style.display = '';
+        moduleView.innerHTML = '';
+        sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = 'none'));
+        openTool(id, moduleView, store);
+      }
     });
   });
 }
