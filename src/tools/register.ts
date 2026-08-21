@@ -28,7 +28,12 @@ export function registerAllTools(): void {
     },
   });
   registerTool({ id: 'ai', name: 'AI', icon: IC.brain, placeholder: true });
-  registerTool({ id: 'settings', name: '设置', icon: IC.settings, placeholder: true });
+  registerTool({
+    id: 'settings', name: '设置', icon: IC.settings,
+    open(host, store) {
+      if (store) import('../ui/settings').then((m) => m.renderSettings(store, host));
+    },
+  });
   /* 占位模块：素材库 / 编辑器独立入口 */
   registerTool({ id: 'library', name: '素材库', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>', placeholder: true });
 }
