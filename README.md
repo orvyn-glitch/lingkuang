@@ -1,7 +1,7 @@
 # 灵框 LingKuang v3
 
 [![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/orvyn-glitch/lingkuang)](https://github.com/orvyn-glitch/lingkuang/releases)
+[![Release](https://img.shields.io/github/v/release/sleepless-diary/lingkuang)](https://github.com/sleepless-diary/lingkuang/releases)
 [![Electron](https://img.shields.io/badge/Electron-43-47848F)](package.json)
 
 **阈限梦核（Liminal Dreamcore）世界观工作台** —— 一个自带氛围的创作工具：时间线、灵感触发器、词义联想图，都住在一条褪色的走廊里。
@@ -28,7 +28,7 @@
 
 ### 普通用户：直接下载，不用装任何环境
 
-从 [Releases](https://github.com/orvyn-glitch/lingkuang/releases) 下载：
+从 [Releases](https://github.com/sleepless-diary/lingkuang/releases) 下载：
 
 - `LingKuang-x.x.x-x64.exe` — 安装版（双击安装）
 - `LingKuang-x.x.x-portable-x64.exe` — 便携版（双击即用，免安装）

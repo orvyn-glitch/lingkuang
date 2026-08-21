@@ -6,7 +6,7 @@
 
 ## 1. 安装与启动
 
-**普通用户**：从 [Releases](https://github.com/orvyn-glitch/lingkuang/releases) 下载
+**普通用户**：从 [Releases](https://github.com/sleepless-diary/lingkuang/releases) 下载
 - `LingKuang-x.x.x-x64.exe` — 安装版，双击安装
 - `LingKuang-x.x.x-portable-x64.exe` — 便携版，双击即用
 
