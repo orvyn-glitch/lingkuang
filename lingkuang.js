@@ -404,7 +404,7 @@
     }
   }
   /* ── 内建工具注册（作为插件；灵感触发器/时间线/编辑器是现有视图）── */
-  registerTool({ id: 'timeline', name: '世界观时间线', icon: '🌍',
+  registerTool({ id: 'timeline', name: '世界沙盘', icon: '🌍',
     desc: '那些时间的边角。节点会记住你把它放在哪里，以及你当时的心情。',
     meta: ['时间线', '拖拽平移 · Alt 缩放'], el: views.timeline });
   registerTool({ id: 'editor', name: '文本编辑器', icon: '📝',
