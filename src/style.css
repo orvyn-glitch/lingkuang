@@ -33,35 +33,9 @@ body {
 
 .lk-app { display: flex; flex-direction: column; height: 100%; }
 
-/* 世界栏（顶部世界 tab + 工具栏） */
-.lk-worldbar {
-  display: flex;
-  align-items: stretch;
-  background: var(--chrome);
-  color: var(--fg-inverse);
-  border-bottom: 1px solid var(--chrome-2);
-  min-height: 40px;
-}
-.lk-worldbar-tabs { display: flex; align-items: center; gap: 2px; padding: 0 8px; flex: 1; overflow-x: auto; }
-.lk-world-tab {
-  background: none;
-  border: none;
-  color: var(--fg-inverse);
-  opacity: 0.65;
-  font-size: var(--text-sm);
-  padding: 8px 14px;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-.lk-world-tab:hover { opacity: 1; background: var(--chrome-2); }
-.lk-world-tab.is-active { opacity: 1; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
-.lk-worldbar-tools { display: flex; align-items: center; gap: 2px; padding: 0 8px; border-left: 1px solid var(--chrome-2); }
-.lk-tool-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
+/* 主区：左工具栏 + 沙盘（时间线在上/地图在下）+ 右工具宿主 */
+.lk-main { flex: 1; display: flex; min-height: 0; }
+.lk-tool-btn {  background: none;
   border: none;
   color: var(--fg-inverse);
   opacity: 0.7;
@@ -114,6 +88,49 @@ body {
 .lk-pane { display: flex; flex-direction: column; min-height: 0; }
 .lk-pane-timeline { flex: 1; border-bottom: 1px solid var(--border); }
 .lk-pane-map { flex: 1; }
+/* 世界按钮（工具栏左上小方块）：属于工具区域 */
+.lk-world-btn {
+  width: 32px;
+  height: 32px;
+  margin: 2px 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--chrome-2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lk-world-btn:hover { background: rgba(158, 194, 98, 0.15); }
+.lk-world-menu {
+  position: fixed;
+  z-index: 999;
+  display: none;
+  min-width: 140px;
+  background: var(--chrome);
+  color: var(--fg-inverse);
+  border: 1px solid var(--chrome-2);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+.lk-world-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--fg-inverse);
+  font-size: 12px;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.lk-world-menu-item:hover { background: var(--chrome-2); }
+.lk-world-menu-item.is-on { color: var(--accent); }
 .lk-pane-head {
   padding: 6px 12px;
   font-size: var(--text-xs);
