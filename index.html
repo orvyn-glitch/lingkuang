@@ -1002,7 +1002,27 @@ body.is-idle .veil__grain {
   border-radius: var(--radius-sm);
   box-shadow: inset 0 0 0 1px rgba(158, 194, 98, 0.08);
 }
-/* 画线模式：已选入剧情线的节点高亮 */
+/* 画线模式：已选段持久色带（track 内，随平移/缩放） */
+#tl-seg-marks { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 30; }
+.tl__seg-mark {
+  position: absolute;
+  top: 58px;
+  height: 26px;
+  border-radius: 4px;
+  background: rgba(158, 194, 98, 0.16);
+  border: 1.5px solid rgba(158, 194, 98, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(158, 194, 98, 0.10);
+}
+.tl__seg-mark.is-open { border-style: dashed; }
+.tl__seg-mark.is-open::after {
+  content: '∞';
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  font-size: 11px;
+  color: var(--accent);
+}
+/* 画线模式：已选段内节点高亮 */
 .tl__n.is-inline {
   border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(158, 194, 98, 0.45) !important;
@@ -2937,12 +2957,14 @@ body.is-idle .veil__grain {
       <div class="tl__stage" id="tl-stage">
         <div class="tl__line-bar" id="tl-line-bar" style="display:none">
           <span class="tl__line-count" id="tl-line-count">已选 0 段</span>
-          <span class="tl__line-hint">拖拽刷选一段（可多段，gap 自动断开）· Enter 完成 · Esc 取消</span>
+          <span class="tl__line-hint">拖拽刷选加段 / 橡皮擦擦出 gap · Enter 完成 · Esc 取消</span>
+          <button class="btn btn--ghost" id="tl-eraser-btn" style="padding:6px 12px;font-size:var(--text-xs);">橡皮擦</button>
           <button class="btn btn--ghost" id="tl-line-cancel" style="padding:6px 12px;font-size:var(--text-xs);">取消</button>
           <button class="btn btn--primary" id="tl-line-done" style="padding:6px 14px;font-size:var(--text-xs);">完成</button>
         </div>
         <div class="tl__track" id="tl-track">
           <div id="tl-nodes"></div>
+          <div id="tl-seg-marks"></div>
           <div class="tl__empty" id="tl-empty" style="display:none">
             <div>
               <span class="serif">这里暂时空着</span>
