@@ -76,9 +76,41 @@ body {
 .lk-tool-btn.is-ph { opacity: 0.4; }
 .lk-tool-btn.is-ph:hover { opacity: 0.7; }
 
-/* 主区：沙盘（时间线在上/地图在下）+ 工具宿主 */
+/* 主区：左工具栏 + 沙盘（时间线在上/地图在下）+ 右工具宿主 */
 .lk-main { flex: 1; display: flex; min-height: 0; }
 .lk-sandbox { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.lk-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 48px;
+  background: var(--chrome);
+  color: var(--fg-inverse);
+  border-right: 1px solid var(--chrome-2);
+  padding: 6px 0;
+  overflow-y: auto;
+}
+.lk-tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--fg-inverse);
+  opacity: 0.7;
+  font-size: 9px;
+  padding: 6px 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  width: 44px;
+  white-space: nowrap;
+}
+.lk-tool-btn:hover { opacity: 1; background: var(--chrome-2); }
+.lk-tool-btn.is-active { opacity: 1; color: var(--accent); background: var(--chrome-2); }
+.lk-tool-btn.is-ph { opacity: 0.4; }
+.lk-tool-btn.is-ph:hover { opacity: 0.7; }
 .lk-pane { display: flex; flex-direction: column; min-height: 0; }
 .lk-pane-timeline { flex: 1; border-bottom: 1px solid var(--border); }
 .lk-pane-map { flex: 1; }

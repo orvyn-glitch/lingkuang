@@ -12,9 +12,9 @@ export function renderShell(store: Store, host: HTMLElement): void {
     <div class="lk-app">
       <header class="lk-worldbar">
         <div class="lk-worldbar-tabs" id="lk-world-tabs"></div>
-        <div class="lk-worldbar-tools" id="lk-toolbar"></div>
       </header>
       <main class="lk-main">
+        <nav class="lk-toolbar" id="lk-toolbar"></nav>
         <section class="lk-sandbox" id="lk-sandbox">
           <div class="lk-pane lk-pane-timeline" id="lk-pane-timeline">
             <div class="lk-pane-head">世界沙盘 · 时间线 <span class="lk-ph">（功能迁移中）</span></div>
