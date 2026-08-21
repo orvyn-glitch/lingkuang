@@ -99,6 +99,10 @@
       html += '<div class="tl__modal-field"><label>' + escapeHtml(f.key) + '</label>';
       if (f.type === 'longtext') {
         html += '<textarea id="ent-f-' + escapeHtml(f.key) + '" spellcheck="false" style="width:100%;min-height:60px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(v) + '</textarea>';
+      } else if (f.type === 'number') {
+        html += '<input type="number" step="any" id="ent-f-' + escapeHtml(f.key) + '" value="' + escapeHtml(v) + '" />';
+      } else if (f.type === 'boolean') {
+        html += '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--fg-2);"><input type="checkbox" id="ent-f-' + escapeHtml(f.key) + '"' + (v === true || v === 'true' ? ' checked' : '') + ' /> 是</label>';
       } else {
         html += '<input type="text" id="ent-f-' + escapeHtml(f.key) + '" value="' + escapeHtml(v) + '" />';
       }
@@ -113,7 +117,10 @@
       if (!e.data) e.data = {};
       (t.fields || []).forEach(function (f) {
         var inp = document.getElementById('ent-f-' + f.key);
-        if (inp) e.data[f.key] = inp.value;
+        if (!inp) return;
+        if (f.type === 'number') e.data[f.key] = parseFloat(inp.value) || 0;
+        else if (f.type === 'boolean') e.data[f.key] = inp.checked;
+        else e.data[f.key] = inp.value;
       });
       e.desc = document.getElementById('ent-desc').value;
       saveTimelines();
@@ -146,10 +153,10 @@
       kIn.style.cssText = 'flex:1;min-width:0;padding:5px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
       var tSel = document.createElement('select');
       tSel.style.cssText = 'padding:5px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);';
-      ['text', 'longtext'].forEach(function (tt) {
+      ['text', 'longtext', 'number', 'boolean'].forEach(function (tt) {
         var o = document.createElement('option');
         o.value = tt;
-        o.textContent = tt === 'text' ? '单行' : '多行';
+        o.textContent = { text: '单行', longtext: '多行', number: '数值', boolean: '是/否' }[tt];
         o.selected = f.type === tt;
         tSel.appendChild(o);
       });
