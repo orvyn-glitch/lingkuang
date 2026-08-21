@@ -237,9 +237,9 @@
   function parseDoc(doc) {
     var fields = [];
     var bodyLines = [];
-    String(doc || '').split('\n').forEach(function (line) {
+    String(doc || '').split('\n').forEach(function (line, idx) {
       var m = line.match(/^#\s*([^：:]+)[：:]\s*(.*)$/);
-      if (m && m[1].trim()) fields.push({ k: m[1].trim(), v: m[2].trim() });
+      if (m && m[1].trim()) fields.push({ k: m[1].trim(), v: m[2].trim(), line: idx });
       else bodyLines.push(line);
     });
     return { fields: fields, body: bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() };
@@ -2010,7 +2010,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     addLinkedInput(people, n, 'people', '人物', el);
     addLinkedInput(places, n, 'places', '地点', el);
     foot.textContent = n.type === 'year' ? '年代锚点' : (n.type === 'plot' ? '剧情 / 人物节点' : '世界事件节点');
-    /* 文稿本体渲染：#字段 高亮 + 正文；编辑按钮打开面板内 textarea */
+    /* 文稿本体渲染：每个 #字段 = 独立卡片（小标题+内容，快捷编辑）；正文；原文稿编辑在底部 */
     var docFieldsEl = document.getElementById('d-doc-fields');
     var docBodyEl = document.getElementById('d-doc-body');
     var docBtn = document.getElementById('d-doc-btn');
@@ -2018,9 +2018,37 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     function renderNodeDoc() {
       if (!docFieldsEl || !docBodyEl) return;
       var parsed = parseDoc(n.doc);
-      docFieldsEl.innerHTML = parsed.fields.length
-        ? parsed.fields.map(function (f) { return '<span class="pf-k">#' + escapeHtml(f.k) + '</span><span class="pf-v">：' + escapeHtml(f.v) + '</span>'; }).join('<br>')
-        : '<span class="pf-empty">（无字段 · 用 #字段：值 添加，自动识别）</span>';
+      docFieldsEl.innerHTML = '';
+      parsed.fields.forEach(function (f, i) {
+        var card = document.createElement('div');
+        card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
+        var head = document.createElement('div');
+        head.style.cssText = 'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
+        head.textContent = f.k;
+        var val = document.createElement('div');
+        val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
+        val.textContent = f.v;
+        val.contentEditable = 'true';
+        val.title = '点击修改';
+        val.addEventListener('blur', function () {
+          var newV = val.textContent;
+          if (newV === f.v) return;
+          var lines = String(n.doc || '').split('\n');
+          var li = f.line;
+          if (li >= 0 && li < lines.length) {
+            lines[li] = '#' + f.k + '：' + newV;
+            n.doc = lines.join('\n');
+            f.v = newV;
+            saveTimelines();
+          }
+        });
+        card.appendChild(head);
+        card.appendChild(val);
+        docFieldsEl.appendChild(card);
+      });
+      if (!parsed.fields.length) {
+        docFieldsEl.innerHTML = '<span class="pf-empty">（无字段 · 底部「编辑原文稿」用 #字段：值 添加）</span>';
+      }
       docBodyEl.textContent = parsed.body || '';
       docBodyEl.style.display = parsed.body ? '' : 'none';
     }
@@ -2034,32 +2062,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         });
       };
     }
-    /* 关联文稿（编辑器联动）：下拉选 docs 文稿，保存 n.docId；打开按钮跳编辑器 */
-    var docSel = document.getElementById('d-doc-select');
-    var docOpen = document.getElementById('d-doc-open');
-    if (docSel) {
-      docSel.innerHTML = '<option value="">（无关联文稿）</option>';
-      Object.keys(docs).forEach(function (k) {
-        if (k === '__untitled__') return;
-        var o = document.createElement('option');
-        o.value = k;
-        o.textContent = k;
-        o.selected = n.docId === k;
-        docSel.appendChild(o);
-      });
-      docSel.onchange = function () {
-        n.docId = docSel.value || undefined;
-        saveTimelines();
-      };
-    }
-    if (docOpen) {
-      docOpen.onclick = function () {
-        if (!n.docId || typeof showView !== 'function' || typeof renderEditor !== 'function') return;
-        activeDoc = n.docId;
-        renderEditor();
-        showView('editor');
-      };
-    }
+    /* 关联文稿 UI 已移除（本体=文稿，无需再关联独立文稿）；n.docId 数据保留兼容 */
 
     /* delete this node (loop clones remove from their style template so
        every synchronized cycle loses it too) */

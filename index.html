@@ -3087,12 +3087,12 @@ body.is-idle .veil__grain {
             <button data-type="event" class="is-on">世界事件</button>
             <button data-type="plot">剧情 / 人物</button>
           </div>
-          <!-- 文稿本体（Obsidian 式：#字段：值 自动识别为字段，正文渲染） -->
+          <!-- 文稿本体（Obsidian 式：字段 = 独立卡片可快捷编辑；原文稿编辑在底部） -->
           <div class="tl__detail-sec-title">文稿</div>
-          <div class="tl__detail-chips" id="d-doc-fields" style="flex-direction:column;align-items:stretch;gap:2px;"></div>
+          <div class="tl__detail-chips" id="d-doc-fields" style="flex-direction:column;align-items:stretch;gap:6px;"></div>
           <div class="tl__detail-desc" id="d-doc-body" style="white-space:pre-wrap;font-size:var(--text-sm);color:var(--fg-2);"></div>
-          <button class="btn btn--ghost" id="d-doc-btn" style="width:100%;margin-top:6px;font-size:var(--text-xs);padding:6px;">✎ 编辑文稿</button>
           <div id="d-doc-edit" style="display:none;margin-top:6px;"></div>
+          <button class="btn btn--ghost" id="d-doc-btn" style="width:100%;margin-top:6px;font-size:var(--text-xs);padding:6px;">✎ 编辑原文稿</button>
           <div>
             <div class="tl__detail-sec-title">关联人物</div>
             <div class="tl__detail-chips" id="d-people"></div>
@@ -3100,14 +3100,6 @@ body.is-idle .veil__grain {
           <div>
             <div class="tl__detail-sec-title">关联地点</div>
             <div class="tl__detail-chips" id="d-places"></div>
-          </div>
-          <!-- 关联文稿（编辑器联动） -->
-          <div>
-            <div class="tl__detail-sec-title">关联文稿</div>
-            <div class="tl__detail-chips" id="d-doc" style="flex-direction:column;align-items:stretch;gap:4px;">
-              <select id="d-doc-select" style="padding:6px 8px;font-size:var(--text-sm);background:var(--surface-2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;"></select>
-              <button class="btn btn--ghost" id="d-doc-open" style="width:100%;font-size:var(--text-xs);padding:6px;">在编辑器中打开</button>
-            </div>
           </div>
           <!-- 角色档案（剧情/人物节点：初稿 + 演变） -->
           <div id="d-profile" style="display:none">
