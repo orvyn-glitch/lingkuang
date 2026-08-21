@@ -81,6 +81,7 @@ function renderTimelineTabs(store: Store): void {
   if (newBtn) newBtn.addEventListener('click', () => addTimeline(store, '新时间线'));
 }
 
+function renderToolbar(store: Store, host: HTMLElement): void {
   const bar = document.getElementById('lk-toolbar');
   const toolHost = document.getElementById('lk-tool-host');
   if (!bar || !toolHost) return;
