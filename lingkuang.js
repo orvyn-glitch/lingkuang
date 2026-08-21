@@ -600,19 +600,17 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       el.classList.toggle('is-future', isFuture);
     });
   }
-  /* 拖动手柄改指针时间 */
+  /* 拖动手柄改指针时间（window 级监听，不依赖 pointer capture——鼠标移出也实时更新） */
   var cursorDragging = false;
   if (timeCursorEl) {
     var handleEl = timeCursorEl.querySelector('.tl__time-cursor-handle');
     if (handleEl) {
       handleEl.addEventListener('pointerdown', function (e) {
-        if (timeCursor === null) return;
         cursorDragging = true;
         e.stopPropagation();
         e.preventDefault();
-        if (handleEl.setPointerCapture) handleEl.setPointerCapture(e.pointerId);
       });
-      handleEl.addEventListener('pointermove', function (e) {
+      window.addEventListener('pointermove', function (e) {
         if (!cursorDragging) return;
         var rect = stage.getBoundingClientRect();
         var mx = e.clientX - rect.left;
@@ -620,7 +618,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         updateTimeCursorPos();
         applyTimeCursorState();
       });
-      handleEl.addEventListener('pointerup', function () {
+      window.addEventListener('pointerup', function () {
         if (!cursorDragging) return;
         cursorDragging = false;
         saveTimeCursor();
