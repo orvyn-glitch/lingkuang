@@ -1050,9 +1050,11 @@ body.is-idle .veil__grain {
   position: absolute;
   top: 0;
   bottom: 0;
+  left: 0;
   width: 0;
   z-index: 45;
   pointer-events: none;
+  will-change: transform;   /* 与画布同走合成器，缓动同步 */
 }
 .tl__time-cursor-line {
   position: absolute;

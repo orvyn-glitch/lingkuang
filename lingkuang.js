@@ -581,12 +581,12 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     ws.timeCursor = timeCursor;
     saveTimelines();
   }
-  /* 指针视口位置（随 pan 跟随） */
+  /* 指针视口位置（随 pan 跟随；用 transform 与画布同走合成器，避免 left 布局滞后） */
   function updateTimeCursorPos() {
     if (!timeCursorEl) return;
     timeCursorEl.style.display = '';
     var x = timeToX(timeCursor) + panX;
-    timeCursorEl.style.left = x + 'px';
+    timeCursorEl.style.transform = 'translateX(' + x + 'px)';
     var tEl = timeCursorEl.querySelector('.tl__time-cursor-time');
     if (tEl) tEl.textContent = fmtScale(Math.round(timeCursor * 100) / 100);
   }
@@ -3596,7 +3596,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       /* 兜底：强制刷新指针视觉（即使 updateTimeCursorPos 被某处吞掉） */
       if (timeCursorEl) {
         timeCursorEl.style.display = '';
-        timeCursorEl.style.left = (timeToX(timeCursor) + panX) + 'px';
+        timeCursorEl.style.transform = 'translateX(' + (timeToX(timeCursor) + panX) + 'px)';
         var tcTimeEl = timeCursorEl.querySelector('.tl__time-cursor-time');
         if (tcTimeEl) tcTimeEl.textContent = fmtScale(Math.round(timeCursor * 100) / 100);
       }
