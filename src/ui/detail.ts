@@ -52,6 +52,11 @@ export function renderNodeDetail(
 ): void {
   const { fields, body } = parseDoc(node.doc);
   const timeText = fields.find((f) => f.k === '时间')?.v ?? fmtNodeTime(node);
+  const chips = [
+    ...(node.tag ? [node.tag] : []),
+    ...(node.people ?? []).map((p) => `人：${p}`),
+    ...(node.places ?? []).map((p) => `地：${p}`),
+  ];
 
   host.innerHTML = `
     <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
@@ -59,7 +64,7 @@ export function renderNodeDetail(
         <span style="font-size:15px;font-weight:600;color:var(--fg);">${node.title}</span>
         <span style="font-size:var(--text-xs);color:var(--fg-2);font-family:var(--font-mono);">${timeText}</span>
       </div>
-      <div style="font-size:var(--text-xs);color:var(--fg-2);">${node.type}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">${chips.map((c) => `<span style="font-size:10px;color:var(--accent);background:rgba(158,194,98,.1);border:1px solid var(--border-soft);border-radius:var(--radius-pill);padding:1px 8px;">${c}</span>`).join('')}</div>
       <div style="display:flex;gap:6px;align-items:center;">
         <span style="font-size:var(--text-xs);color:var(--fg-2);">时间</span>
         <input id="d-year" type="number" step="any" value="${node.year}" style="width:90px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:3px 6px;font-size:var(--text-sm);outline:none;"/>
@@ -67,8 +72,11 @@ export function renderNodeDetail(
         <button id="d-del" style="margin-left:auto;background:transparent;border:1px solid #c0392b;color:#c0392b;border-radius:var(--radius-sm);padding:3px 10px;font-size:var(--text-xs);cursor:pointer;">删除</button>
       </div>
       <div id="d-fields" style="display:flex;flex-direction:column;gap:6px;"></div>
-      <div style="font-size:var(--text-sm);color:var(--fg);line-height:1.6;white-space:pre-wrap;">${escapeHtml(body || '(空正文)')}</div>
+      <div id="d-body" style="font-size:var(--text-sm);color:var(--fg);line-height:1.7;"></div>
     </div>`;
+
+  const bodyEl = host.querySelector('#d-body') as HTMLElement;
+  bodyEl.innerHTML = body ? mdRender(body) : '<span style="color:var(--fg-2);">(空正文)</span>';
 
   const yearInput = host.querySelector('#d-year') as HTMLInputElement;
   yearInput.addEventListener('change', () => {
@@ -108,6 +116,26 @@ function makeFieldCard(k: string, v: string): HTMLElement {
   card.appendChild(head);
   card.appendChild(val);
   return card;
+}
+
+/** 轻量 Markdown 渲染（**粗体** / #标题 / -列表 / 链接 / 代码，安全转义） */
+function mdRender(src: string): string {
+  return escapeHtml(src)
+    .split('\n')
+    .map((line) => {
+      const t = line.trim();
+      if (/^#{1,3}\s/.test(t)) {
+        const level = (t.match(/^#+/) || [''])[0].length;
+        return `<div style="font-weight:600;font-size:${level === 1 ? 15 : 13}px;margin:6px 0 2px;color:var(--fg);">${t.replace(/^#+\s*/, '')}</div>`;
+      }
+      if (/^[-*]\s/.test(t)) return `<div style="padding-left:12px;position:relative;">${t.replace(/^[-*]\s*/, '')}</div>`;
+      if (/^\d+[.、]\s/.test(t)) return `<div style="padding-left:12px;">${t.replace(/^\d+[.、]\s*/, '')}</div>`;
+      return `<div>${t}</div>`;
+    })
+    .join('')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code style="background:var(--surface-2);padding:0 4px;border-radius:2px;font-family:var(--font-mono);font-size:12px;">$1</code>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:var(--accent);text-decoration:underline;">$1</a>');
 }
 
 function escapeHtml(s: string): string {
