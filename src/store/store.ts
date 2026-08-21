@@ -28,7 +28,8 @@ function createStore(initial: WorldData): Store {
     setActiveWorld(name) {
       if (!data.worldsets[name]) return;
       activeWorld = name;
-      activeTimeline = data.worldsets[name].order?.[0] ?? '';
+      const ws = data.worldsets[name];
+      activeTimeline = (ws.order ?? []).find((id) => ws.timelines[id]) || Object.keys(ws.timelines)[0] || '';
       listeners.forEach((fn) => fn(store));
     },
     setActiveTimeline(id) {

@@ -29,9 +29,16 @@ export function mountTimeline(
   const cursorEl = host.querySelector('.tl-cursor') as HTMLElement;
   const view: View = { panX: 0, panY: 0, spacing: 2 };
 
-  function timeline(): Timeline | undefined {
+  /** 有效时间线 id：order 里存在才用，否则回退 timelines 第一个 key（兼容旧数据 order 与 key 不一致） */
+  function activeTimelineId(): string | undefined {
     const ws = currentWorld(store);
-    const id = store.activeTimeline || ws.order?.[0];
+    const valid = (ws.order ?? []).find((id) => ws.timelines[id]);
+    if (store.activeTimeline && ws.timelines[store.activeTimeline]) return store.activeTimeline;
+    return valid || Object.keys(ws.timelines)[0];
+  }
+
+  function timeline(): Timeline | undefined {
+    const id = activeTimelineId();
     return id ? getTimeline(store, id) : undefined;
   }
   function yearX(t: number): number {

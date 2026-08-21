@@ -63,16 +63,25 @@ function renderWorldTabs(store: Store): void {
   });
 }
 
+/** 有效时间线 id（兼容旧数据 order 与 key 不一致）：order 里存在才用，否则回退第一个 key */
+function activeTimelineId(store: Store): string | undefined {
+  const ws = currentWorld(store);
+  const valid = (ws.order ?? []).find((id) => ws.timelines[id]);
+  if (store.activeTimeline && ws.timelines[store.activeTimeline]) return store.activeTimeline;
+  return valid || Object.keys(ws.timelines)[0];
+}
+
 /** 时间线 tabs（沙盘 pane-head）：切换时间线 + 新建 */
 function renderTimelineTabs(store: Store): void {
   const head = document.getElementById('lk-pane-timeline')?.querySelector('.lk-pane-head');
   if (!head) return;
   const ws = currentWorld(store);
-  const ids = ws.order ?? [];
+  const ids = (ws.order ?? []).filter((id) => ws.timelines[id]);
+  const active = activeTimelineId(store);
   const tabsHtml = ids
     .map(
       (id) =>
-        `<button class="lk-tl-tab${id === store.activeTimeline ? ' is-active' : ''}" data-tl="${id}">${ws.timelines[id]?.name ?? '?'}<span class="cnt">${ws.timelines[id]?.nodes.length ?? 0}</span></button>`
+        `<button class="lk-tl-tab${id === active ? ' is-active' : ''}" data-tl="${id}">${ws.timelines[id]?.name ?? '?'}<span class="cnt">${ws.timelines[id]?.nodes.length ?? 0}</span></button>`
     )
     .join('');
   head.innerHTML =
@@ -85,10 +94,11 @@ function renderTimelineTabs(store: Store): void {
   const nodeBtn = head.querySelector('#lk-node-new');
   if (nodeBtn) {
     nodeBtn.addEventListener('click', () => {
-      const tl = currentWorld(store).timelines[store.activeTimeline];
+      const id = activeTimelineId(store);
+      const tl = id ? currentWorld(store).timelines[id] : undefined;
       if (!tl) return;
       const toolHost = document.getElementById('lk-tool-host');
-      if (toolHost) renderNodeForm(store, toolHost, store.activeTimeline, tl.name);
+      if (toolHost) renderNodeForm(store, toolHost, id, tl.name);
     });
   }
 }
