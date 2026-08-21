@@ -15,7 +15,12 @@ export function registerAllTools(): void {
     id: 'sandbox', name: '世界沙盘', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></svg>',
     open(host) { host.innerHTML = ''; },   /* 点击回到沙盘主视图（清空右侧面板） */
   });
-  registerTool({ id: 'inspire', name: '灵感触发器', icon: IC.dice });
+  registerTool({
+    id: 'inspire', name: '灵感触发器', icon: IC.dice,
+    open(host, store) {
+      if (store) import('../ui/inspire').then((m) => m.renderInspire(store, host));
+    },
+  });
   registerTool({
     id: 'editor', name: '编辑器', icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     open(host, store) {
