@@ -5,6 +5,7 @@ import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { getTimeline, setTimeCursor, saveNodeDoc } from '../store/actions';
 import type { Timeline, TimelineNode, Storyline, Loop } from '../store/types';
+import { renderNodeForm } from './node-form';
 
 interface View {
   panX: number;
