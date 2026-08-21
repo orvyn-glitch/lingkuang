@@ -117,8 +117,12 @@
       });
       e.desc = document.getElementById('ent-desc').value;
       saveTimelines();
+      entityError.style.cssText = 'display:;color:var(--accent);margin-top:6px;font-size:var(--text-sm);';
+      entityError.textContent = '已保存：' + (e.name || '(未命名)');
+      /* 收起表单，刷新列表 */
+      entityForm.style.display = 'none';
       renderEntityList();
-      entityError.style.display = 'none';
+      setTimeout(function () { entityError.style.display = 'none'; }, 1800);
     });
   }
   /* 类型编辑 modal */
@@ -199,6 +203,9 @@
     renderEntityTypeSelect();
     entityTypeSelect.value = editingTypeId;
     renderEntityList();
+    entityError.style.cssText = 'display:;color:var(--accent);margin-top:6px;font-size:var(--text-sm);';
+    entityError.textContent = '类型已保存：' + t.name;
+    setTimeout(function () { entityError.style.display = 'none'; }, 1800);
   });
   document.getElementById('entity-add').addEventListener('click', function () {
     var ws = worldsets[activeWorldset];
