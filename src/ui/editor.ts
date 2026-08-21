@@ -3,7 +3,7 @@
 import type { Store } from '../store/store';
 import { currentWorld } from '../store/store';
 import { saveNodeDoc, addEntity } from '../store/actions';
-import type { Timeline, Entity, EntityType } from '../store/types';
+import type { EntityType } from '../store/types';
 
 export function renderEditor(store: Store, host: HTMLElement): void {
   host.style.overflow = 'hidden';
