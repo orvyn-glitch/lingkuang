@@ -4519,7 +4519,166 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     refreshPanBounds();
   });
 
-  /* ── The Hum · AI panel ────────────────────────────────── */
+  /* ── 地图画布编辑器（手绘矢量：按住拖拽画区域，自动平滑闭合）── */
+  var mapDrawMode = 'region';   /* 'region' 画区域 / 'marker' 放标记 */
+  var mapColor = '#9ec262';     /* 当前区域填充色 */
+  var mapDrawPts = [];          /* 手绘采样点 */
+  var mapDrawing = false;
+  /* Catmull-Rom → 贝塞尔：采样点平滑成 SVG path（C 曲线） */
+  function smoothPath(pts, close) {
+    if (pts.length < 2) return '';
+    var d = 'M ' + pts[0][0] + ' ' + pts[0][1];
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ', ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ', ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+    }
+    return close ? d + ' Z' : d;
+  }
+  function renderMapEditor() {
+    var m = activeMap;
+    edTitle.value = m.name;
+    edTitle.readOnly = false;
+    edPreview.style.display = 'none';
+    edInput.style.display = 'none';
+    edPreview.innerHTML = '';
+    /* 工具条 */
+    var bar = '<div class="map-bar">'
+      + '<button class="btn btn--ghost' + (mapDrawMode === 'region' ? ' is-on' : '') + '" id="map-mode-region" style="font-size:var(--text-xs);padding:5px 10px;">✏ 画区域</button>'
+      + '<button class="btn btn--ghost' + (mapDrawMode === 'marker' ? ' is-on' : '') + '" id="map-mode-marker" style="font-size:var(--text-xs);padding:5px 10px;">📍 位置</button>'
+      + '<input type="color" id="map-color" value="' + mapColor + '" style="width:28px;height:24px;border:none;background:none;cursor:pointer;" title="区域颜色" />'
+      + '<span style="font-size:var(--text-xs);color:var(--meta);margin-left:auto;">拖拽画区域（松手自动闭合）· 点画布放位置</span>'
+      + '</div>';
+    /* 画布 */
+    var canvas = '<div class="map-canvas-wrap" style="flex:1;overflow:auto;position:relative;">'
+      + '<svg id="map-svg" width="' + m.width + '" height="' + m.height + '" style="background:#e8e4d8;background-image:linear-gradient(rgba(58,58,52,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(58,58,52,0.05) 1px,transparent 1px);background-size:24px 24px;display:block;cursor:crosshair;">'
+      + '<defs></defs>'
+      + '<g id="map-regions"></g>'
+      + '<g id="map-markers"></g>'
+      + '<path id="map-draw-preview" fill="rgba(158,194,98,0.15)" stroke="' + mapColor + '" stroke-width="1.5" style="display:none;"/>'
+      + '</svg></div>';
+    edInput.style.display = 'none';
+    edPreview.style.display = '';
+    edPreview.innerHTML = bar + canvas;
+    drawMapRegions();
+    drawMapMarkers();
+    /* 模式切换 */
+    var rBtn = document.getElementById('map-mode-region');
+    var mBtn = document.getElementById('map-mode-marker');
+    if (rBtn) rBtn.onclick = function () { mapDrawMode = 'region'; rBtn.classList.add('is-on'); mBtn.classList.remove('is-on'); };
+    if (mBtn) mBtn.onclick = function () { mapDrawMode = 'marker'; mBtn.classList.add('is-on'); rBtn.classList.remove('is-on'); };
+    var cIn = document.getElementById('map-color');
+    if (cIn) cIn.oninput = function () { mapColor = cIn.value; };
+    /* 画布交互：手绘区域 / 放标记 */
+    var svg = document.getElementById('map-svg');
+    if (svg) {
+      svg.addEventListener('pointerdown', function (e) {
+        var rect = svg.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        if (mapDrawMode === 'marker') {
+          prompt2('位置名称：').then(function (label) {
+            m.markers.push({ id: 'mk' + Date.now(), x: x, y: y, label: label || '位置' });
+            saveTimelines();
+            drawMapMarkers();
+          });
+          return;
+        }
+        mapDrawing = true;
+        mapDrawPts = [[x, y]];
+        svg.setPointerCapture && svg.setPointerCapture(e.pointerId);
+      });
+      svg.addEventListener('pointermove', function (e) {
+        if (!mapDrawing) return;
+        var rect = svg.getBoundingClientRect();
+        var x = e.clientX - rect.left, y = e.clientY - rect.top;
+        var last = mapDrawPts[mapDrawPts.length - 1];
+        if (last && Math.abs(x - last[0]) < 3 && Math.abs(y - last[1]) < 3) return;
+        mapDrawPts.push([x, y]);
+        var prev = document.getElementById('map-draw-preview');
+        if (prev) {
+          prev.setAttribute('d', smoothPath(mapDrawPts, true));
+          prev.style.display = '';
+        }
+      });
+      svg.addEventListener('pointerup', function () {
+        if (!mapDrawing) return;
+        mapDrawing = false;
+        if (mapDrawPts.length < 4) { document.getElementById('map-draw-preview').style.display = 'none'; return; }
+        var region = { id: 'r' + Date.now(), name: '', path: smoothPath(mapDrawPts, true), fill: mapColor, points: mapDrawPts.map(function (p) { return [Math.round(p[0]), Math.round(p[1])]; }) };
+        m.regions.push(region);
+        saveTimelines();
+        drawMapRegions();
+        document.getElementById('map-draw-preview').style.display = 'none';
+      });
+    }
+    renderFileTree();
+  }
+  /* 画区域 */
+  function drawMapRegions() {
+    var g = document.getElementById('map-regions');
+    if (!g) return;
+    g.innerHTML = '';
+    (activeMap.regions || []).forEach(function (r) {
+      var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', r.path);
+      p.setAttribute('fill', r.fill || '#9ec262');
+      p.setAttribute('fill-opacity', '0.5');
+      p.setAttribute('stroke', '#5a574f');
+      p.setAttribute('stroke-width', '1.5');
+      p.title = r.name || '';
+      /* 右键删除区域 */
+      p.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        activeMap.regions = activeMap.regions.filter(function (x) { return x !== r; });
+        saveTimelines();
+        drawMapRegions();
+      });
+      g.appendChild(p);
+    });
+  }
+  /* 画位置标记 */
+  function drawMapMarkers() {
+    var g = document.getElementById('map-markers');
+    if (!g) return;
+    g.innerHTML = '';
+    (activeMap.markers || []).forEach(function (mk) {
+      var grp = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', mk.x); c.setAttribute('cy', mk.y);
+      c.setAttribute('r', '6'); c.setAttribute('fill', '#0f0f11'); c.setAttribute('stroke', '#9ec262'); c.setAttribute('stroke-width', '1.5');
+      var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', mk.x + 9); t.setAttribute('y', mk.y + 4);
+      t.setAttribute('font-size', '12'); t.setAttribute('fill', '#3a3a34');
+      t.textContent = mk.label || '位置';
+      grp.appendChild(c); grp.appendChild(t);
+      grp.style.cursor = 'pointer';
+      grp.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        activeMap.markers = activeMap.markers.filter(function (x) { return x !== mk; });
+        saveTimelines();
+        drawMapMarkers();
+      });
+      g.appendChild(grp);
+    });
+  }
+  /* Electron 禁用 prompt → 自定义简易输入 */
+  function prompt2(msg) {
+    var v = window.prompt ? null : null;
+    /* 简易：浏览器 alert 替代（Electron 不支持 prompt，用页面内输入） */
+    var input = document.createElement('div');
+    input.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);z-index:999;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.3);';
+    input.innerHTML = '<div style="font-size:var(--text-sm);color:var(--fg);margin-bottom:8px;">' + msg + '</div>'
+      + '<input id="prompt2-in" style="width:220px;padding:6px 8px;font-size:var(--text-sm);"/>'
+      + '<div style="margin-top:8px;display:flex;gap:6px;"><button id="prompt2-ok" class="btn btn--primary" style="font-size:var(--text-xs);padding:5px 12px;">确定</button></div>';
+    document.body.appendChild(input);
+    var inp = input.querySelector('#prompt2-in');
+    inp.focus();
+    return new Promise(function (res) {
+      input.querySelector('#prompt2-ok').onclick = function () { var v = inp.value; input.remove(); res(v); };
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var v = inp.value; input.remove(); res(v); } });
+    });
+  }
   var humWrap = document.getElementById('hum-wrap');
   var humBody = document.getElementById('hum-body');
   var humInput = document.getElementById('hum-input');
@@ -4581,6 +4740,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
   var docs = { '__untitled__': '# 未命名\n\n写点什么…' };
   var activeDoc = '__untitled__';
   var activeNode = null;        /* 编辑器正在编辑的节点文稿（点击文件树节点时设置） */
+  var activeMap = null;         /* 编辑器正在编辑的地图（点击文件树地图时设置 → 画布编辑器） */
   var editingEntityDoc = null;  /* 正在编辑的实体 id（保存写回 e.doc） */
   var saveTimer = null;
 
@@ -4662,7 +4822,19 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     return s;
   }
 
-  /* 文件树（VS Code 式）：世界观 → 时间线 → 节点(.md)；实体；笔记 */
+  /* 地图数据（结构化：区域多边形 + 图层 + 位置节点） */
+  function mapsOf(ws) {
+    if (!ws.maps || !Array.isArray(ws.maps)) ws.maps = [];
+    return ws.maps;
+  }
+  function newMap(name) {
+    var ws = worldsets[activeWorldset];
+    var maps = mapsOf(ws);
+    var m = { id: 'm' + Date.now(), name: name || ('地图 ' + (maps.length + 1)), width: 800, height: 500, regions: [], layers: [], markers: [] };
+    maps.push(m);
+    return m;
+  }
+  /* 文件树（VS Code 式）：世界观 → 时间线 → 节点(.md)；实体；地图；笔记 */
   function renderFileTree() {
     edFiles.innerHTML = '';
     function folder(title) {
@@ -4719,6 +4891,21 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
         });
       });
     }
+    /* 地图 */
+    var ws3 = worldsets[activeWorldset];
+    var maps = ws3 ? mapsOf(ws3) : [];
+    if (maps.length) {
+      folder('地图');
+      maps.forEach(function (m) {
+        file('🗺 ' + m.name, activeMap === m, function () {
+          activeNode = null;
+          activeDoc = '__untitled__';
+          editingEntityDoc = null;
+          activeMap = m;
+          renderEditor();
+        });
+      });
+    }
     /* 笔记（docs） */
     folder('笔记');
     Object.keys(docs).forEach(function (k) {
@@ -4733,6 +4920,7 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
     edFiles.scrollTop = 0;
   }
   function renderEditor() {
+    if (activeMap) { renderMapEditor(); return; }
     var d = activeNode ? (activeNode.doc || '') : (docs[activeDoc] || '');
     edTitle.value = activeNode ? activeNode.title : (activeDoc === '__untitled__' ? '' : activeDoc);
     edTitle.readOnly = !!activeNode;   /* 节点名由时间线面板改 */
