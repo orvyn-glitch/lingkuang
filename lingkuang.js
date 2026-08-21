@@ -86,6 +86,28 @@
       entityList.appendChild(row);
     });
   }
+  /* 字段卡片（小标题 + contenteditable 内容框，快捷编辑回写）——节点/实体共用 */
+  function makeFieldCard(k, v, onCommit) {
+    var card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
+    var head = document.createElement('div');
+    head.style.cssText = 'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
+    head.textContent = k;
+    var val = document.createElement('div');
+    val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
+    val.textContent = v;
+    val.contentEditable = 'true';
+    val.title = '点击修改';
+    val.addEventListener('blur', function () {
+      var newV = val.textContent;
+      if (newV === v) return;
+      if (onCommit(newV)) { v = newV; }
+      else { val.textContent = v; }
+    });
+    card.appendChild(head);
+    card.appendChild(val);
+    return card;
+  }
   /* 实体文本解析：#字段：值 每行一个（自动识别字段，容忍半角冒号/空行） */
   function parseEntityText(text) {
     var data = {};
@@ -97,45 +119,63 @@
     });
     return data;
   }
-  /* 实体表单：名字 + 档案文本块（#字段：值，自动识别）+ 描述 */
+  /* 实体表单：名字 + 文稿本体渲染（字段卡片 + 正文，同节点模式） */
   function openEntityForm(e) {
     editingEntity = e.id;
     var ws = worldsets[activeWorldset];
     var types = entityTypesOf(ws);
     var t = types[e.type] || { fields: [] };
     entityForm.style.display = '';
-    /* 预填 # 行：类型字段顺序优先，其次已有 data 的其他键 */
-    var lines = [];
-    var used = {};
-    (t.fields || []).forEach(function (f) {
-      var v = (e.data && e.data[f.key] !== undefined && e.data[f.key] !== '') ? e.data[f.key] : '';
-      lines.push('#' + f.key + '：' + v);
-      used[f.key] = true;
-    });
-    if (e.data) {
-      Object.keys(e.data).forEach(function (k) {
-        if (!used[k] && e.data[k] !== '') lines.push('#' + k + '：' + e.data[k]);
-      });
-    }
     var html = '<div class="tl__modal-field"><label>名字</label><input id="ent-name" value="' + escapeHtml(e.name || '') + '" /></div>';
-    html += '<div class="tl__modal-field"><label>档案（#字段：值 每行一个，自动识别）</label>'
-      + '<textarea id="ent-data" spellcheck="false" style="width:100%;min-height:96px;resize:vertical;padding:7px 10px;font-family:var(--font-mono);font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">'
-      + escapeHtml(lines.join('\n')) + '</textarea></div>';
-    html += '<div class="tl__modal-field"><label>描述</label><textarea id="ent-desc" spellcheck="false" style="width:100%;min-height:48px;resize:vertical;padding:7px 10px;font-size:var(--text-sm);color:var(--fg);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none;">' + escapeHtml(e.desc || '') + '</textarea></div>';
-    html += '<button class="btn btn--primary" id="ent-save" style="width:100%;">保存实体</button>';
+    html += '<div class="tl__detail-sec-title">文稿（#字段：值 自动识别；点卡片快捷改；底部编辑原文稿）</div>';
+    html += '<div id="ent-doc-fields" style="display:flex;flex-direction:column;gap:6px;"></div>';
+    html += '<div id="ent-doc-body" style="white-space:pre-wrap;font-size:var(--text-sm);color:var(--fg-2);margin-top:6px;"></div>';
+    html += '<div id="ent-doc-edit" style="display:none;margin-top:6px;"></div>';
+    html += '<button class="btn btn--ghost" id="ent-edit-btn" style="width:100%;margin-top:6px;font-size:var(--text-xs);padding:6px;">✎ 编辑原文稿</button>';
+    html += '<button class="btn btn--primary" id="ent-save" style="width:100%;margin-top:6px;">保存实体</button>';
     entityForm.innerHTML = html;
-    var saveBtn = document.getElementById('ent-save');
-    saveBtn.addEventListener('click', function () {
+    var fieldsEl = document.getElementById('ent-doc-fields');
+    var bodyEl = document.getElementById('ent-doc-body');
+    var editWrap = document.getElementById('ent-doc-edit');
+    function renderEntityDoc() {
+      var parsed = parseDoc(e.doc);
+      fieldsEl.innerHTML = '';
+      parsed.fields.forEach(function (f) {
+        if (f.k === '时间') return;   /* 实体时间切片由切片系统管理（后期） */
+        fieldsEl.appendChild(makeFieldCard(f.k, f.v, function (newV) {
+          var lines = String(e.doc || '').split('\n');
+          if (f.line >= 0 && f.line < lines.length) {
+            lines[f.line] = '#' + f.k + '：' + newV;
+            e.doc = lines.join('\n');
+            saveTimelines();
+            return true;
+          }
+          return false;
+        }));
+      });
+      if (!parsed.fields.length) fieldsEl.innerHTML = '<span class="pf-empty">（无字段 · 编辑原文稿用 #字段：值 添加）</span>';
+      bodyEl.innerHTML = parsed.body ? mdRender(parsed.body) : '';
+      bodyEl.style.display = parsed.body ? '' : 'none';
+    }
+    renderEntityDoc();
+    editWrap.style.display = 'none';
+    document.getElementById('ent-edit-btn').onclick = function () {
+      openDocEditor(e, function () {
+        editWrap.style.display = 'none';
+        renderEntityDoc();
+      });
+    };
+    document.getElementById('ent-save').onclick = function () {
       e.name = document.getElementById('ent-name').value.trim() || e.name;
-      e.data = parseEntityText(document.getElementById('ent-data').value);
-      e.desc = document.getElementById('ent-desc').value;
+      e.data = {};
+      parseDoc(e.doc).fields.forEach(function (f) { e.data[f.k] = f.v; });
       saveTimelines();
       entityError.style.cssText = 'display:;color:var(--accent);margin-top:6px;font-size:var(--text-sm);';
       entityError.textContent = '已保存：' + (e.name || '(未命名)');
       entityForm.style.display = 'none';
       renderEntityList();
       setTimeout(function () { entityError.style.display = 'none'; }, 1800);
-    });
+    };
   }
   /* 类型编辑 modal */
   function openTypeEditor(tid) {
@@ -2102,28 +2142,6 @@ var seqPitch = 96;           /* px between consecutive events (nonlinear) */
       }
       docBodyEl.innerHTML = parsed.body ? mdRender(parsed.body) : '';
       docBodyEl.style.display = parsed.body ? '' : 'none';
-    }
-    /* 字段卡片：小标题 + contenteditable 内容框（快捷编辑回写 doc） */
-    function makeFieldCard(k, v, onCommit) {
-      var card = document.createElement('div');
-      card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
-      var head = document.createElement('div');
-      head.style.cssText = 'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
-      head.textContent = k;
-      var val = document.createElement('div');
-      val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
-      val.textContent = v;
-      val.contentEditable = 'true';
-      val.title = '点击修改';
-      val.addEventListener('blur', function () {
-        var newV = val.textContent;
-        if (newV === v) return;
-        if (onCommit(newV)) { v = newV; }
-        else { val.textContent = v; }
-      });
-      card.appendChild(head);
-      card.appendChild(val);
-      return card;
     }
     renderNodeDoc();
     if (docEditWrap) docEditWrap.style.display = 'none';
