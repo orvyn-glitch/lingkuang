@@ -84,13 +84,7 @@ export function mountTimeline(
       return;
     }
     const nodes = tl.nodes;
-    let lineHtml = '';
-    if (nodes.length) {
-      const yrs = nodes.map((n) => n.year);
-      const lo = Math.min(...yrs), hi = Math.max(...yrs);
-      const x0 = timeToX(lo), x1 = timeToX(hi);
-      lineHtml = `<div class="tl-line" style="left:${x0}px;width:${Math.max(0, x1 - x0)}px;top:15.5px;"></div>`;
-    }
+    const lineHtml = '<div class="tl-line"></div>';   /* 时间线常驻贯穿（无限画布） */
     track.innerHTML =
       lineHtml +
       nodes
@@ -104,7 +98,7 @@ export function mountTimeline(
 
   /* 节点 HTML（legacy 结构：.tl__n + .cap + .tl__name） */
   function nodeHtml(n: TimelineNode, x: number, sel: boolean): string {
-    return `<div class="tl__n${sel ? ' is-sel' : ''}${n.type === 'event' ? ' is-event' : ''}" data-id="${n.id}" style="left:${x}px;top:12px;">
+    return `<div class="tl__n${sel ? ' is-sel' : ''}${n.type === 'event' ? ' is-event' : ''}" data-id="${n.id}" style="left:${x}px;">
       <div class="cap"></div><div class="tl__name">${n.title}</div>
     </div>`;
   }
@@ -416,13 +410,7 @@ export function mountTimeline(
   };
 
   function lineHtmlOf(nodes: TimelineNode[]): string {
-    let html = '';
-    if (nodes.length) {
-      const yrs = nodes.map((n) => n.year);
-      const lo = Math.min(...yrs), hi = Math.max(...yrs);
-      const x0 = timeToX(lo), x1 = timeToX(hi);
-      html = `<div class="tl-line" style="left:${x0}px;width:${Math.max(0, x1 - x0)}px;top:15.5px;"></div>`;
-    }
+    let html = '<div class="tl-line"></div>';
     return html + nodes.map((n) => {
       const x = timeToX(n.year);
       const sel = n.id === selectedId;
@@ -476,7 +464,7 @@ export function mountTimeline(
         for (let c = 1; c < L.count; c++) {
           inner.forEach((n) => {
             const x = timeToX(n.year + c * r.span);
-            frames!.innerHTML += `<div class="tl__ghost" style="left:${x}px;top:12px;"><div class="cap"></div><div class="tl__name">${n.title}²</div></div>`;
+            frames!.innerHTML += `<div class="tl__ghost" style="left:${x}px;"><div class="cap"></div><div class="tl__name">${n.title}²</div></div>`;
           });
         }
       }
@@ -600,12 +588,12 @@ export function mountTimeline(
     const n = nodes.length;
     const pitch = Math.max(24, (wrap.clientWidth - 100) / n);
     track.innerHTML =
-      `<div class="tl-line" style="left:0;right:0;top:15.5px;"></div>` +
+      '<div class="tl-line"></div>' +
       nodes
         .map((node, i) => {
           const x = 50 + i * pitch;
           const sel = node.id === selectedId;
-          return nodeHtml(node, x, sel) + `<div style="font-size:8px;color:var(--fg-2);position:absolute;top:34px;left:50%;transform:translateX(-50%);">${node.year}</div>`;
+          return nodeHtml(node, x, sel) + `<div style="font-size:8px;color:var(--fg-2);position:absolute;top:calc(50% + 16px);left:50%;transform:translateX(-50%);">${node.year}</div>`;
         })
         .join('');
     renderScale();

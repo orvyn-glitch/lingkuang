@@ -175,8 +175,9 @@ body {
 /* ══════════ 画布：节点 + 时间线照搬 legacy；循环/范围条/标尺重新设计 ══════════ */
 .tl__n {
   position: absolute;
+  top: 50%;                      /* 节点居中于 track（对齐时间线） */
   width: 26px; height: 26px;
-  margin: -13px 0 0 -13px;
+  margin: -13px 0 0 -13px;       /* 盒中心 = 线中心 */
   cursor: pointer;
   text-align: center;
   z-index: 2;
@@ -206,9 +207,12 @@ body {
   pointer-events: none;
   text-shadow: 0 1px 0 var(--bg);
 }
-/* 时间线（照搬 legacy .tl__axis）：3px 粗结构线，两端 fade，圆端 */
+/* 时间线（照搬 legacy .tl__axis）：3px 粗结构线，常驻贯穿全宽，垂直居中 */
 .tl-line {
   position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   height: 3px;
   border-radius: 2px;
   background: linear-gradient(to right, transparent, rgba(58, 58, 52, 0.55) 24px, rgba(58, 58, 52, 0.55) calc(100% - 24px), transparent);
@@ -268,12 +272,16 @@ body {
   color: var(--fg-2);
   white-space: nowrap;
 }
-/* 幽灵节点（循环重复段，半透明） */
+/* 幽灵节点（循环重复段，半透明，居中于线） */
 .tl__ghost {
   position: absolute;
+  top: 50%;
+  width: 26px; height: 26px;
+  margin: -13px 0 0 -13px;
   opacity: 0.35;
   pointer-events: none;
   z-index: 1;
+  text-align: center;
 }
-.tl__ghost .cap { width: 10px; height: 10px; border-radius: 50%; background: var(--fg); border: 1px dashed var(--accent); }
-.tl__ghost .tl__name { font-size: 9px; color: var(--fg-2); }
+.tl__ghost .cap { position: absolute; left: 8px; top: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); border: 1px dashed var(--accent); }
+.tl__ghost .tl__name { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--fg-2); white-space: nowrap; }
