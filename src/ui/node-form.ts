@@ -20,7 +20,23 @@ export function parseTimeText(text: string): { year: number } | null {
   return { year: Math.round(y * 1000) / 1000 };
 }
 
+/** 小数年份 → 人类可读时间文本（"312" / "312年7月" / "312年7月15日"） */
+function fmtCursorTime(y: number): string {
+  const yr = Math.floor(y + 1e-9);
+  const frac = y - yr;
+  if (frac <= 0.001) return String(yr);
+  const month = Math.floor(frac * 12) + 1;
+  const rem = (frac * 12 - (month - 1)) * 30;
+  const day = Math.floor(rem + 1e-6) + 1;
+  if (month > 12) return String(yr);
+  if (day <= 1) return `${yr}年${month}月`;
+  return `${yr}年${month}月${day}日`;
+}
+
 export function renderNodeForm(store: Store, host: HTMLElement, tlId: string, tlName: string): void {
+  /* 默认时间 = 当前时间指针（world.timeCursor 小数年份）→ 人类可读文本 */
+  const cursor = store.data.worldsets[store.activeWorld]?.timeCursor;
+  const defaultTime = cursor !== null && cursor !== undefined ? fmtCursorTime(cursor) : '';
   host.innerHTML = `
     <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
       <div style="font-size:15px;font-weight:600;color:var(--fg);">添加节点 · ${tlName}</div>
@@ -29,8 +45,8 @@ export function renderNodeForm(store: Store, host: HTMLElement, tlId: string, tl
         <input id="nf-title" type="text" placeholder="节点标题" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;"/>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:var(--text-xs);color:var(--fg-2);">时间</label>
-        <input id="nf-time" type="text" placeholder="312 或 312年7月 或 312年7月15日" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;"/>
+        <label style="font-size:var(--text-xs);color:var(--fg-2);">时间（默认=当前指示器）</label>
+        <input id="nf-time" type="text" value="${defaultTime}" placeholder="312 或 312年7月 或 312年7月15日" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);padding:6px 8px;font-size:var(--text-sm);outline:none;"/>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="font-size:var(--text-xs);color:var(--fg-2);">类型</label>
