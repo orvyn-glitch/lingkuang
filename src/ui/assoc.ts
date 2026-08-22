@@ -85,19 +85,15 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 根始终显示；其余子层完全由 focusChildId 决定（单线聚焦，selected 不强制显示） */
-    assocGraph.nodes.forEach((n) => {
-      if (n.isRoot) vis.add(n.id);
-    });
-    /* 展开节点的子层：受 focusChildId 限制——只显示 focusChildId 指向的那个，其他收起 */
-    assocGraph.nodes.forEach((n) => {
-      if (!n.expanded) return;
-      n.children.forEach((c) => {
-        if (vis.has(c)) return;
-        if (n.focusChildId !== null && n.focusChildId !== undefined && n.focusChildId !== c) return;
-        vis.add(c);
-      });
-    });
+    /* 从根 DFS：节点显示，expanded 才进子层（层层深入展开即显示，不收起） */
+    const walk = (nid: number) => {
+      if (vis.has(nid)) return;
+      vis.add(nid);
+      const n = assocGraph!.nodes[nid];
+      if (n && n.expanded) n.children.forEach(walk);
+    };
+    assocGraph.nodes.forEach((n) => { if (n.isRoot) walk(n.id); });
+    if (!vis.size) assocGraph.nodes.forEach((n) => walk(n.id));
     return vis;
   }
 
@@ -106,28 +102,9 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
+    /* 点击任意词条（含根/子）→ 从它展开联想分支（二次联想，层层深入） */
     focusedId = id;
-    const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
-    if (parent) {
-      /* 点子词：选中支线 + 收起该父的其他子层（单线聚焦） */
-      node.selected = true;
-      parent.focusChildId = id;
-      if (!node.expanded) expandNode(id);   /* 未展开才展开，已展开保持（不toggle收起） */
-      else renderGraph();
-      return;
-    }
-    /* 点父级（root 或父节点）：恢复全部子层 */
-    if (node.children.length) {
-      if (node.focusChildId !== null && node.focusChildId !== undefined) {
-        node.focusChildId = null;
-        renderGraph();
-        assocStatus('恢复全部子层');
-      } else if (!node.expanded) {
-        node.expanded = true;
-        renderGraph();
-      }
-      /* 已展开且未收起 → 保持，不 toggle */
-    }
+    expandNode(id);
   }
 
   /* ── 力导向 ── */
@@ -299,6 +276,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function expandNode(id: number) {
     const node = assocGraph?.nodes[id];
     if (!node) return;
+    if (node.expanded && node.children.length > 0) return;   /* 已展开且已有子词 → 不重复联想 */
     node.expanded = true;
     renderGraph();
     callAssociate(id);
