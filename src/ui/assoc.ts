@@ -90,7 +90,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       if (n.selected) vis.add(n.id);
       if (n.isRoot) vis.add(n.id);
     });
-    /* 展开节点的子层：受 focusChildId 限制（单线聚焦——点某词，其他兄弟收起） */
+    /* 展开节点的子层：受 focusChildId 限制（单线聚焦——点某词，其他兄弟收起）。
+       focusChildId 为 undefined/null 时表示不限制（显示全部子层），有值才只显示它指向的。 */
     assocGraph.nodes.forEach((n) => {
       if (!n.expanded) return;
       n.children.forEach((c) => {
@@ -278,7 +279,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         nid = assocGraph!.nodes.length;
         assocGraph!.wordIndex[w] = nid;
         assocGraph!.nodes.push({
-          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: false,
+          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: true,  /* selected 确保新词一定显示 */
           x: node.x + (Math.random() - 0.5) * 200,
           y: node.y + (Math.random() - 0.5) * 200,
           vx: 0, vy: 0,
