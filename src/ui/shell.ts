@@ -134,7 +134,6 @@ function renderToolbar(store: Store): void {
       el.classList.add('is-active');
       const id = (el as HTMLElement).dataset.tool!;
       const moduleView = document.getElementById('lk-module-view');
-      const sandbox = document.getElementById('lk-sandbox');
       const toolHost = document.getElementById('lk-tool-host');
       if (id === 'sandbox') {
         /* 世界沙盘：隐藏模块覆盖 */
