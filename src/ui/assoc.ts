@@ -109,28 +109,24 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
     if (parent) {
-      /* 点子词：选中支线 + 收起该父的其他子层（单线聚焦）；未展开则展开 */
+      /* 点子词：选中支线 + 收起该父的其他子层（单线聚焦） */
       node.selected = true;
       parent.focusChildId = id;
-      if (!node.expanded) expandNode(id);
-      else {
-        /* 已展开：点自己展开/收起子层 */
-        node.expanded = !node.expanded;
-        renderGraph();
-      }
+      if (!node.expanded) expandNode(id);   /* 未展开才展开，已展开保持（不toggle收起） */
+      else renderGraph();
       return;
     }
-    /* 点父级（root 或父节点）：恢复全部子层 或 展开收起 */
+    /* 点父级（root 或父节点）：恢复全部子层 */
     if (node.children.length) {
-      /* 若子层被收起（focusChildId 限制了），恢复全部 */
       if (node.focusChildId !== null && node.focusChildId !== undefined) {
         node.focusChildId = null;
         renderGraph();
         assocStatus('恢复全部子层');
-      } else {
-        node.expanded = !node.expanded;
+      } else if (!node.expanded) {
+        node.expanded = true;
         renderGraph();
       }
+      /* 已展开且未收起 → 保持，不 toggle */
     }
   }
 
