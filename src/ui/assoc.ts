@@ -85,15 +85,20 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 从根 DFS：节点显示，expanded 才进子层（层层深入展开即显示，不收起） */
-    const walk = (nid: number) => {
-      if (vis.has(nid)) return;
-      vis.add(nid);
-      const n = assocGraph!.nodes[nid];
-      if (n && n.expanded) n.children.forEach(walk);
-    };
-    assocGraph.nodes.forEach((n) => { if (n.isRoot) walk(n.id); });
-    if (!vis.size) assocGraph.nodes.forEach((n) => walk(n.id));
+    /* 选中路径（selected）永远可见——保留思维链；根始终显示 */
+    assocGraph.nodes.forEach((n) => {
+      if (n.selected) vis.add(n.id);
+      if (n.isRoot) vis.add(n.id);
+    });
+    /* 展开节点的子层：受 focusChildId 限制（单线聚焦——点某词，其他兄弟收起） */
+    assocGraph.nodes.forEach((n) => {
+      if (!n.expanded) return;
+      n.children.forEach((c) => {
+        if (vis.has(c)) return;
+        if (n.focusChildId !== null && n.focusChildId !== undefined && n.focusChildId !== c) return;
+        vis.add(c);
+      });
+    });
     return vis;
   }
 
@@ -102,9 +107,27 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
-    /* 点击任意词条（含根/子）→ 从它展开联想分支（二次联想，层层深入） */
     focusedId = id;
-    expandNode(id);
+    const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
+    if (parent) {
+      /* 点子词：选中（保留思维链）+ 收起父的其他兄弟（focusChildId）+ 独立展开该词 */
+      node.selected = true;
+      parent.focusChildId = id;
+      if (!node.expanded) expandNode(id);   /* 未展开→联想独立分支；已展开→保持显示 */
+      else renderGraph();
+      return;
+    }
+    /* 点父级/根：恢复全部子层 */
+    if (node.children.length) {
+      if (node.focusChildId !== null && node.focusChildId !== undefined) {
+        node.focusChildId = null;
+        renderGraph();
+        assocStatus('恢复全部子层');
+      } else if (!node.expanded) {
+        node.expanded = true;
+        renderGraph();
+      }
+    }
   }
 
   /* ── 力导向 ── */
