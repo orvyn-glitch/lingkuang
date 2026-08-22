@@ -248,9 +248,12 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         if (!r.ok) throw new Error('api ' + r.status);
         words = cleanWords((await r.json()).choices[0].message.content || '');
       } else {
-        const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: cfg.model, messages, stream: false, options: { temperature: 0.8, num_predict: 200 } }) });
+        const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: cfg.model, messages, stream: false, options: { temperature: 0.8, num_predict: 200, think: false } }) });
         if (!r.ok) throw new Error('ollama ' + r.status);
-        words = cleanWords(((await r.json()).message?.content) || '');
+        const msg = (await r.json()).message || {};
+        /* qwen3: think:false 后内容应在 content；若仍空则读 thinking（兜底） */
+        const text = msg.content || msg.thinking || '';
+        words = cleanWords(text);
       }
     } catch (err) {
       node.expanded = false;
@@ -379,15 +382,20 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       if (wasDrag) { suppressClick = true; dragMoved = false; setTimeout(() => (suppressClick = false), 0); }
     });
     stage.addEventListener('wheel', (e) => {
-      if (!e.altKey) return;
-      e.preventDefault();
-      const rect = stage.getBoundingClientRect();
-      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      const nz = Math.min(3, Math.max(0.4, assocZoom * (e.deltaY > 0 ? 0.9 : 1.1)));
-      assocPanX = mx - (mx - assocPanX) * (nz / assocZoom);
-      assocPanY = my - (my - assocPanY) * (nz / assocZoom);
-      assocZoom = nz;
-      applyWorldTransform();
+      if (e.altKey) {
+        e.preventDefault();
+        const rect = stage.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        const nz = Math.min(3, Math.max(0.4, assocZoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+        assocPanX = mx - (mx - assocPanX) * (nz / assocZoom);
+        assocPanY = my - (my - assocPanY) * (nz / assocZoom);
+        assocZoom = nz;
+        applyWorldTransform();
+        return;
+      }
+      /* 普通滚轮：让外层模块视图滚动页面（世界元素 overflow:hidden 会吞滚轮，这里接管） */
+      const scroller = stage.closest('.lk-module-view') as HTMLElement | null;
+      if (scroller) scroller.scrollTop += e.deltaY;
     }, { passive: false });
     stage.addEventListener('click', (e) => {
       if (suppressClick) return;

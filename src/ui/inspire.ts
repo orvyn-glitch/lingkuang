@@ -134,8 +134,9 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
     result.querySelectorAll('.insp-count').forEach((el) => {
       el.addEventListener('change', () => {
         groupCounts[parseInt((el as HTMLElement).dataset.g!, 10)] = (el as HTMLSelectElement).value;
-        activeCombo = collectCombo();
-        renderChar(activeCombo);
+        /* 切换词条数 = 重新按新数量随机该组（不保留旧 combo，否则词数不生效） */
+        activeCombo = null;
+        renderChar(null);
       });
     });
   }
