@@ -15,7 +15,7 @@ const DEFAULTS: Settings = {
   aiMode: 'ollama',
   baseUrl: 'http://localhost:11434',
   apiKey: '',
-  model: 'qwen2.5:14b',
+  model: 'qwen3:14b',
   glide: 0.55,
   sensitivity: 1,
   rulerDensity: 1,
@@ -28,8 +28,8 @@ export function loadSettings(): Settings {
   } catch {
     s = { ...DEFAULTS };
   }
-  /* 用户明确要用 14b：旧默认 7b 且未手动改过 → 滚到 14b */
-  if (s.model === 'qwen2.5:7b') s.model = 'qwen2.5:14b';
+  /* 用户明确要用 14b（实际是 qwen3:14b）：旧默认 7b/14b 名 → 滚到 qwen3:14b */
+  if (s.model === 'qwen2.5:7b' || s.model === 'qwen2.5:14b') s.model = 'qwen3:14b';
   return s;
 }
 export function saveSettings(s: Settings) {
