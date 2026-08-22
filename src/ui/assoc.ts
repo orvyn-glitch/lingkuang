@@ -110,11 +110,10 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
     if (parent) {
-      /* 点子词：选中（保留思维链）+ 收起父的其他兄弟（focusChildId）+ 独立展开该词 */
+      /* 点子词：选中（保留思维链）+ 收起父的其他兄弟（focusChildId）+ 独立展开该词（无论是否展开过都联想） */
       node.selected = true;
       parent.focusChildId = id;
-      if (!node.expanded) expandNode(id);   /* 未展开→联想独立分支；已展开→保持显示 */
-      else renderGraph();
+      expandNode(id);
       return;
     }
     /* 点父级/根：也触发独立展开（二次联想）——恢复收起或展开 */
