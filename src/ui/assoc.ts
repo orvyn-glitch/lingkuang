@@ -85,12 +85,11 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 选中支线（selected）始终显示；根始终显示 */
+    /* 根始终显示；其余子层完全由 focusChildId 决定（单线聚焦，selected 不强制显示） */
     assocGraph.nodes.forEach((n) => {
-      if (n.selected) vis.add(n.id);
       if (n.isRoot) vis.add(n.id);
     });
-    /* 展开节点的子层：受 focusChildId 限制（单线聚焦：只显示选中那个子层，其他收起） */
+    /* 展开节点的子层：受 focusChildId 限制——只显示 focusChildId 指向的那个，其他收起 */
     assocGraph.nodes.forEach((n) => {
       if (!n.expanded) return;
       n.children.forEach((c) => {
