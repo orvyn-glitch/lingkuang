@@ -292,44 +292,6 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   }
 
   /* 移除子树（自身保留，skipSelected 跳过选中支线） */
-  function removeSubtree(id: number, skipSelected: boolean) {
-    const node = assocGraph?.nodes[id];
-    if (!node) return;
-    const toRemove = new Set<number>();
-    node.children.slice().forEach((cid) => {
-      const collect = (nid: number) => {
-        const n = assocGraph?.nodes[nid];
-        if (!n || toRemove.has(nid)) return;
-        if (skipSelected && n.selected) return;
-        toRemove.add(nid);
-        n.children.slice().forEach(collect);
-      };
-      collect(cid);
-    });
-    if (!toRemove.size) return;
-    assocGraph!.nodes = assocGraph!.nodes.filter((n) => !toRemove.has(n.id));
-    assocGraph!.edges = assocGraph!.edges.filter((e) => !toRemove.has(e.from) && !toRemove.has(e.to));
-    /* 重建 wordIndex + 重编号 */
-    const oldToNew: Record<number, number> = {};
-    assocGraph!.nodes.forEach((n, i) => { oldToNew[n.id] = i; });
-    assocGraph!.nodes.forEach((n, i) => { n.id = i; n.children = n.children.filter((c) => !toRemove.has(c)).map((c) => oldToNew[c]); });
-    assocGraph!.edges = assocGraph!.edges.map((e) => ({ from: oldToNew[e.from] ?? e.from, to: oldToNew[e.to] ?? e.to }));
-    assocGraph!.wordIndex = {};
-    assocGraph!.nodes.forEach((n) => { assocGraph!.wordIndex[n.word] = n.id; });
-    if (focusedId !== null) focusedId = assocGraph!.nodes.some((n) => n.id === focusedId) ? focusedId : 0;
-    renderGraph();
-  }
-
-  function refreshNode(id: number) {
-    const node = assocGraph?.nodes[id];
-    if (!node) return;
-    removeSubtree(id, true);
-    if (assocGraph && assocGraph.nodes[id]) {
-      assocGraph.nodes[id].expanded = false;
-      expandNode(id);
-    }
-  }
-
   /* ── 交互事件 ── */
   function bindEvents() {
     stage.addEventListener('pointerdown', (e) => {
