@@ -133,14 +133,8 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
     });
     result.querySelectorAll('.insp-count').forEach((el) => {
       el.addEventListener('change', () => {
-        const gi = parseInt((el as HTMLElement).dataset.g!, 10);
-        groupCounts[gi] = (el as HTMLSelectElement).value;
-        /* 只重新生成该组（按新 count），其他组保留当前词 */
-        const g = CHAR_GROUPS[gi];
-        const current = collectCombo();
-        current[g.t] = rollGroup(g, currentCount(g, gi));
-        activeCombo = current;
-        renderChar(activeCombo);
+        groupCounts[parseInt((el as HTMLElement).dataset.g!, 10)] = (el as HTMLSelectElement).value;
+        /* 切换词条数：只记录数量设置，保留当前词条不刷新；点「重新生成」才按新数量随机 */
       });
     });
   }
