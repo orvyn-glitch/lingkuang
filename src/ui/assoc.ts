@@ -85,10 +85,12 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
+    /* 选中支线（selected）始终显示；根始终显示 */
     assocGraph.nodes.forEach((n) => {
       if (n.selected) vis.add(n.id);
       if (n.isRoot) vis.add(n.id);
     });
+    /* 展开节点的子层：受 focusChildId 限制（单线聚焦：只显示选中那个子层，其他收起） */
     assocGraph.nodes.forEach((n) => {
       if (!n.expanded) return;
       n.children.forEach((c) => {
@@ -106,15 +108,31 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     const node = assocGraph.nodes[id];
     if (!node) return;
     focusedId = id;
-    /* 已展开 → 收起（折叠子层显示） */
-    if (node.expanded && node.children.length > 0) {
-      node.expanded = false;
-      renderGraph();
-      assocStatus(`收起「${node.word}」`);
+    const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
+    if (parent) {
+      /* 点子词：选中支线 + 收起该父的其他子层（单线聚焦）；未展开则展开 */
+      node.selected = true;
+      parent.focusChildId = id;
+      if (!node.expanded) expandNode(id);
+      else {
+        /* 已展开：点自己展开/收起子层 */
+        node.expanded = !node.expanded;
+        renderGraph();
+      }
       return;
     }
-    /* 未展开 → 展开联想 */
-    expandNode(id);
+    /* 点父级（root 或父节点）：恢复全部子层 或 展开收起 */
+    if (node.children.length) {
+      /* 若子层被收起（focusChildId 限制了），恢复全部 */
+      if (node.focusChildId !== null && node.focusChildId !== undefined) {
+        node.focusChildId = null;
+        renderGraph();
+        assocStatus('恢复全部子层');
+      } else {
+        node.expanded = !node.expanded;
+        renderGraph();
+      }
+    }
   }
 
   /* ── 力导向 ── */
