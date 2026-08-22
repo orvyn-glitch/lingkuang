@@ -127,8 +127,15 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
           locks[k] = val;
         }
         persistLocks();
-        activeCombo = collectCombo();
-        renderChar(activeCombo);
+        /* 只切换锁定状态，不刷新词条（避免重roll）——更新按钮颜色+行高亮 */
+        const btn = el as HTMLElement;
+        const isLocked = locks[k] !== undefined;
+        btn.style.color = isLocked ? 'var(--accent)' : 'var(--fg-2)';
+        btn.title = isLocked ? '解锁' : '锁定：下次随机保留';
+        const row = (el as HTMLElement).closest('.insp-row') as HTMLElement;
+        row.style.background = isLocked ? 'rgba(158,194,98,.12)' : '';
+        row.style.borderRadius = isLocked ? '6px' : '';
+        row.style.padding = isLocked ? '2px 4px' : '';
       });
     });
     result.querySelectorAll('.insp-count').forEach((el) => {
