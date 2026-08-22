@@ -393,9 +393,13 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         applyWorldTransform();
         return;
       }
-      /* 普通滚轮：让外层模块视图滚动页面（世界元素 overflow:hidden 会吞滚轮，这里接管） */
-      const scroller = stage.closest('.lk-module-view') as HTMLElement | null;
+      /* 普通滚轮：让灵感触发器内部滚动容器滚动（world 溢出 hidden 会吞滚轮，接管到这里） */
+      const scroller = stage.closest('#insp-scroll') as HTMLElement | null;
       if (scroller) scroller.scrollTop += e.deltaY;
+      else {
+        const mv = stage.closest('.lk-module-view') as HTMLElement | null;
+        if (mv) mv.scrollTop += e.deltaY;
+      }
     }, { passive: false });
     stage.addEventListener('click', (e) => {
       if (suppressClick) return;

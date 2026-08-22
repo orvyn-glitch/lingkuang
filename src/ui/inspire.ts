@@ -37,7 +37,7 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
 
   host.style.overflow = 'visible';   /* 滚动交给 .lk-module-view（overflow:auto），host 不拦截 */
   host.innerHTML = `
-    <div style="display:flex;flex-direction:column;min-height:100%;" id="insp-scroll">
+    <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;" id="insp-scroll">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);flex-wrap:wrap;position:sticky;top:0;z-index:2;flex-shrink:0;">
         <span style="font-size:15px;font-weight:600;color:var(--fg);">灵感触发器</span>
         <span id="insp-status" style="font-size:var(--text-xs);color:var(--fg-2);">加载词库…</span>
@@ -133,10 +133,14 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
     });
     result.querySelectorAll('.insp-count').forEach((el) => {
       el.addEventListener('change', () => {
-        groupCounts[parseInt((el as HTMLElement).dataset.g!, 10)] = (el as HTMLSelectElement).value;
-        /* 切换词条数 = 重新按新数量随机该组（不保留旧 combo，否则词数不生效） */
-        activeCombo = null;
-        renderChar(null);
+        const gi = parseInt((el as HTMLElement).dataset.g!, 10);
+        groupCounts[gi] = (el as HTMLSelectElement).value;
+        /* 只重新生成该组（按新 count），其他组保留当前词 */
+        const g = CHAR_GROUPS[gi];
+        const current = collectCombo();
+        current[g.t] = rollGroup(g, currentCount(g, gi));
+        activeCombo = current;
+        renderChar(activeCombo);
       });
     });
   }
