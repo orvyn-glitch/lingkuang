@@ -362,7 +362,9 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       const wasDrag = dragMoved;
       dragNodeId = null; dragGroup = null; isPanning = false;
       stage.style.cursor = 'grab';
-      if (wasDrag) { suppressClick = true; dragMoved = false; setTimeout(() => (suppressClick = false), 0); }
+      if (wasDrag) suppressClick = true;   /* 拖拽节点 → 抑制紧随的 click */
+      dragMoved = false;
+      setTimeout(() => (suppressClick = false), 0);   /* 无论如何都清，防止卡住 */
     });
     stage.addEventListener('wheel', (e) => {
       if (e.altKey) {
