@@ -100,25 +100,35 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     return vis;
   }
 
-  /* ── 点击节点：再点焦点=刷新 / 点子词=选中收起兄弟 / 点父=恢复或刷新 ── */
+  /* ── 点击节点（单线聚焦状态机）：
+     点未展开词条 → 展开联想（收起兄弟）
+     点已聚焦词条 → 重新联想该词（新一批 d1d2d3）
+     点父级（已收起） → 恢复显示全部子层 / 再点重新联想 ── */
   function onNodeClick(id: number) {
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
+    if (id === focusedId) { refreshNode(id); return; }   /* 点自己=重新联想新批 */
+    focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
-    /* 确定性：点击词条一定触发联想展开（未展开→长新层；已展开/聚焦→重新联想） */
     if (parent) {
-      focusedId = id;
       node.selected = true;
-      parent.focusChildId = id;
-      expandNode(id);
+      parent.focusChildId = id;               /* 收起同级兄弟 */
+      if (!node.expanded) expandNode(id);      /* 未展开 → 展开联想 b1b2b3 */
+      else renderGraph();
       return;
     }
-    /* 根词：聚焦或刷新 */
-    focusedId = id;
-    if (id === focusedId) { /* 已聚焦根词 */ }
-    if (!node.expanded) expandNode(id);
-    else if (node.children.length) renderGraph();
+    /* 根词/无父层：恢复全部子层 或 重新联想 */
+    if (node.children.length) {
+      if (node.focusChildId !== null && node.focusChildId !== undefined) {
+        node.focusChildId = null;             /* 收起状态 → 恢复全部子层 */
+        renderGraph();
+        assocStatus('恢复全部子层');
+      } else {
+        /* 已展开 → 重新联想（删旧子层展新批 d1d2d3） */
+        refreshNode(id);
+      }
+    }
   }
 
   /* ── 力导向 ── */
@@ -265,7 +275,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         nid = assocGraph!.nodes.length;
         assocGraph!.wordIndex[w] = nid;
         assocGraph!.nodes.push({
-          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: true,  /* selected 永远可见 */
+          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: false,
           x: node.x + (Math.random() - 0.5) * 200,
           y: node.y + (Math.random() - 0.5) * 200,
           vx: 0, vy: 0,
@@ -289,6 +299,45 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     node.expanded = true;
     renderGraph();
     callAssociate(id);
+  }
+
+  /* 移除节点子树（自身保留；skipSelected 跳过选中支线）——点自己重新联想时用 */
+  function removeSubtree(id: number, skipSelected: boolean) {
+    const node = assocGraph?.nodes[id];
+    if (!node) return;
+    const toRemove = new Set<number>();
+    node.children.slice().forEach((cid) => {
+      const collect = (nid: number) => {
+        const n = assocGraph?.nodes[nid];
+        if (!n || toRemove.has(nid)) return;
+        if (skipSelected && n.selected) return;
+        toRemove.add(nid);
+        n.children.slice().forEach(collect);
+      };
+      collect(cid);
+    });
+    if (!toRemove.size) return;
+    assocGraph!.nodes = assocGraph!.nodes.filter((n) => !toRemove.has(n.id));
+    assocGraph!.edges = assocGraph!.edges.filter((e) => !toRemove.has(e.from) && !toRemove.has(e.to));
+    const oldToNew: Record<number, number> = {};
+    assocGraph!.nodes.forEach((n, i) => { oldToNew[n.id] = i; });
+    assocGraph!.nodes.forEach((n, i) => { n.id = i; n.children = n.children.filter((c) => !toRemove.has(c)).map((c) => oldToNew[c]); });
+    assocGraph!.edges = assocGraph!.edges.map((e) => ({ from: oldToNew[e.from] ?? e.from, to: oldToNew[e.to] ?? e.to }));
+    assocGraph!.wordIndex = {};
+    assocGraph!.nodes.forEach((n) => { assocGraph!.wordIndex[n.word] = n.id; });
+    if (focusedId !== null) focusedId = assocGraph!.nodes.some((n) => n.id === focusedId) ? focusedId : 0;
+    renderGraph();
+  }
+
+  /* 重新联想：删该词旧子层 → 重新展开（每次新一批词） */
+  function refreshNode(id: number) {
+    const node = assocGraph?.nodes[id];
+    if (!node) return;
+    removeSubtree(id, true);
+    if (assocGraph && assocGraph.nodes[id]) {
+      assocGraph.nodes[id].expanded = false;
+      expandNode(id);
+    }
   }
 
   /* 移除子树（自身保留，skipSelected 跳过选中支线） */
