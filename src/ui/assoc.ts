@@ -109,11 +109,11 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
     if (parent) {
+      /* 点击词条：未展开 → 从此处长出联想分支；已展开 → 聚焦（保留，不删不重roll） */
       node.selected = true;
       parent.focusChildId = id;
       if (!node.expanded) expandNode(id);
       else renderGraph();
-      assocStatus(`选中「${node.word}」· 点父级恢复 / 再点刷新`);
       return;
     }
     if (node.children.length) {
