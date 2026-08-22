@@ -85,38 +85,18 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 焦点路径：根到 focusedId 的祖先链 */
-    const path = new Set<number>();
-    let cur: number | null = focusedId;
-    let depth = 0;
-    while (cur !== null && cur !== undefined && depth < 500) {
-      path.add(cur);
-      cur = assocGraph!.nodes[cur]?.parent ?? null;
-      depth++;
-    }
-    /* 子树全展开（焦点词的深入链） */
-    const walkAll = (nid: number) => {
-      if (vis.has(nid)) return;
-      vis.add(nid);
-      const n = assocGraph!.nodes[nid];
-      if (n && n.expanded) n.children.forEach(walkAll);
-    };
-    /* 焦点方向 walk：节点显示；焦点词子树全展开，路径中间节点只往焦点方向走 */
+    /* 从根 DFS：节点显示；若节点 expanded 则递归其子层，否则只显示自身（子层收起）。
+       这样：点过的词（expanded）展开其联想层，未点的词只显示，形成自然链。 */
     const walk = (nid: number) => {
       if (vis.has(nid)) return;
       vis.add(nid);
       const n = assocGraph!.nodes[nid];
-      if (!n || !n.expanded) return;
-      if (nid === focusedId) {
-        n.children.forEach(walkAll);   /* 焦点词自身：子孙全显示 */
-      } else if (path.has(nid)) {
-        n.children.forEach((c) => { if (path.has(c)) walk(c); });  /* 路径中间：只往焦点方向 */
-      }
+      if (n && n.expanded) n.children.forEach(walk);
     };
     assocGraph.nodes.forEach((n) => { if (n.isRoot) walk(n.id); });
-    /* 若焦点在别处（非根子树），确保焦点词也被显示 */
-    if (focusedId !== null && focusedId !== undefined && !vis.has(focusedId)) walkAll(focusedId);
-    if (!vis.size) assocGraph.nodes.forEach((n) => walkAll(n.id));
+    /* 若焦点词不在根树（异常），确保显示它 */
+    if (focusedId !== null && focusedId !== undefined && !vis.has(focusedId)) walk(focusedId);
+    if (!vis.size) assocGraph.nodes.forEach((n) => walk(n.id));
     return vis;
   }
 
