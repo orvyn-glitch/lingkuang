@@ -180,6 +180,7 @@ body {
 .lk-module-view {
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: auto;
   background: var(--surface);
 }

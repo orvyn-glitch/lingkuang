@@ -37,7 +37,7 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
 
   host.style.overflow = 'visible';   /* 滚动交给 .lk-module-view（overflow:auto），host 不拦截 */
   host.innerHTML = `
-    <div style="display:block;overflow-y:auto;height:100%;" id="insp-scroll">
+    <div style="display:block;height:100%;" id="insp-scroll">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);flex-wrap:wrap;position:sticky;top:0;z-index:2;">
         <span style="font-size:15px;font-weight:600;color:var(--fg);">灵感触发器</span>
         <span id="insp-status" style="font-size:var(--text-xs);color:var(--fg-2);">加载词库…</span>
