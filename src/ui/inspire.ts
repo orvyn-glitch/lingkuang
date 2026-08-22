@@ -1,6 +1,5 @@
-/** 灵感触发器——随机角色生成（词库 58 分类；照抄 legacy 生成/锁定/组数逻辑）+ 语义联想 */
+/** 灵感触发器——随机角色生成（词库 58 分类；照抄 legacy 生成/锁定/组数逻辑）+ 词义联想画布 */
 import type { Store } from '../store/store';
-import { loadSettings } from './settings';
 
 interface Group { t: string; keys: string[]; n: number; }
 type Lib = Record<string, string[]>;
@@ -49,6 +48,7 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
         <button id="insp-roll" style="background:var(--accent);color:var(--accent-on);border:none;border-radius:var(--radius-sm);padding:6px 14px;font-size:var(--text-sm);cursor:pointer;">重新生成</button>
       </div>
       <div id="insp-result" style="flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-content:start;"></div>
+      <div id="insp-assoc" style="height:420px;border-top:1px solid var(--border-soft);flex-shrink:0;"></div>
     </div>`;
 
   const status = host.querySelector('#insp-status') as HTMLElement;
@@ -97,8 +97,7 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
         const locked = locks[k] !== undefined;
         return `<div class="insp-row${locked ? ' is-locked' : ''}" data-key="${k}" style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:var(--text-sm);line-height:1.5;${locked ? 'background:rgba(158,194,98,.12);border-radius:6px;padding:2px 4px;' : ''}">
           <span class="insp-key">${k}</span>
-          <span class="insp-val" style="flex:1;color:var(--fg);">${picks[k]}</span>
-          <button class="insp-assoc" data-word="${picks[k]}" title="语义联想" style="background:none;border:none;color:var(--fg-2);cursor:pointer;font-size:12px;">⚡</button>
+          <button class="insp-val" data-word="${picks[k]}" title="点击语义联想" style="flex:1;text-align:left;background:none;border:none;color:var(--fg);cursor:pointer;font-size:var(--text-sm);font-weight:500;">${picks[k]}</button>
           <button class="insp-lock" data-key="${k}" title="${locked ? '解锁' : '锁定：下次随机保留'}" style="background:none;border:none;color:${locked ? 'var(--accent)' : 'var(--fg-2)'};cursor:pointer;font-size:13px;">⚿</button>
         </div>`;
       }).join('');
@@ -110,72 +109,13 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
   }
 
   /* ── 语义联想（Ollama，设置里配引擎）── */
-  async function runAssoc(word: string) {
-    statusMsg(`联想「${word}」…`);
-    let chains: string[][] = [];
-    try {
-      const cfg = loadSettings();
-      const messages = [
-        {
-          role: 'user',
-          content:
-            '你是词义联想引擎。给定一个词，生成 3 条不同的发散联想链，每条链 5 个词。\n规则：\n1. 链式发散：后一个词由前一个词自然联想而来（例：锁链→手铐→囚牢→监狱→铁窗）\n2. 3 条链必须方向不同\n3. 词要具体、有画面感，2-4 字中文名词为主\n4. 输出格式：3 行，每行一条链，词用「-」连接，不要序号和解释\n\n输入词：\n' + word,
-        },
-      ];
-      let text = '';
-      if (cfg.aiMode === 'api') {
-        if (!cfg.apiKey) { statusMsg('API 模式需在设置填 Key'); return; }
-        const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.apiKey },
-          body: JSON.stringify({ model: cfg.model, messages, temperature: 0.7, max_tokens: 600 }),
-        });
-        if (!r.ok) throw new Error('api ' + r.status);
-        text = (await r.json()).choices[0].message.content;
-      } else {
-        const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: cfg.model, messages, stream: false, options: { temperature: 0.7, num_predict: 600 } }),
-        });
-        if (!r.ok) throw new Error('ollama ' + r.status);
-        text = (await r.json()).message.content;
-      }
-      chains = text
-        .split('\n')
-        .map((l) => l.trim().replace(/^\d+[.．、]\s*/, '').split('-').map((s) => s.trim()).filter(Boolean))
-        .filter((c) => c.length >= 2)
-        .slice(0, 3);
-    } catch (err) {
-      statusMsg('联想失败：' + (err instanceof Error ? err.message : String(err)));
-      return;
-    }
-    if (!chains.length) { statusMsg('联想无结果'); return; }
-    statusMsg(`联想「${word}」完成`);
-    const box = document.createElement('div');
-    box.style.cssText = 'grid-column:1/-1;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);padding:10px 12px;';
-    box.innerHTML = `
-      <div style="font-size:var(--text-xs);font-weight:600;color:var(--fg);margin-bottom:6px;">联想：${word} <span style="color:var(--fg-2);font-weight:400;">（点击词条置入灵感）</span></div>
-      ${chains.map((c) => `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px;">${c.map((w, i) => (i ? '<span style="color:var(--fg-2);font-size:10px;">→</span>' : '') + `<button class="assoc-word" data-w="${w}" style="background:rgba(158,194,98,.08);border:1px solid var(--border-soft);border-radius:var(--radius-pill);color:var(--fg);font-size:11px;padding:1px 8px;cursor:pointer;">${w}</button>`).join('')}</div>`).join('')}
-      <button id="assoc-close" style="margin-top:4px;background:none;border:none;color:var(--fg-2);font-size:11px;cursor:pointer;">收起</button>`;
-    result.insertBefore(box, result.firstChild);
-    box.querySelectorAll('.assoc-word').forEach((el) => {
-      el.addEventListener('click', () => {
-        const w = (el as HTMLElement).dataset.w!;
-        /* 置入灵感：在结果区加一个"候补词条"卡片 */
-        statusMsg(`候补：${w}（可锁定或重新生成融入）`);
-        (el as HTMLElement).style.background = 'var(--accent)';
-        (el as HTMLElement).style.color = 'var(--accent-on)';
-      });
-    });
-    box.querySelector('#assoc-close')?.addEventListener('click', () => box.remove());
-  }
-
   function bindEvents() {
-    result.querySelectorAll('.insp-assoc').forEach((el) => {
-      el.addEventListener('click', async () => {
-        const word = (el as HTMLElement).dataset.word!;
-        await runAssoc(word);
+    result.querySelectorAll('.insp-val').forEach((el) => {
+      el.addEventListener('click', () => {
+        const w = (el as HTMLElement).dataset.word!;
+        /* 触发下方画布联想 */
+        const canvas = host.querySelector('#insp-assoc') as HTMLElement | null;
+        if (canvas && (canvas as any).assocSetRoot) (canvas as any).assocSetRoot(w);
       });
     });
     result.querySelectorAll('.insp-lock').forEach((el) => {
@@ -257,4 +197,10 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
   statusMsg(`${Object.keys(lib).length} 分类 · ${Object.values(lib).reduce((a, v) => a + v.length, 0)} 词条`);
   renderSaves();
   renderChar(null);
+  /* 挂载联想画布（灵感生成卡片下方） */
+  const canvasHost = host.querySelector('#insp-assoc') as HTMLElement;
+  if (canvasHost) {
+    const m = await import('./assoc');
+    m.mountAssocCanvas(canvasHost, () => '');
+  }
 }
