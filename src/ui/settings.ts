@@ -15,18 +15,22 @@ const DEFAULTS: Settings = {
   aiMode: 'ollama',
   baseUrl: 'http://localhost:11434',
   apiKey: '',
-  model: 'qwen2.5:7b',
+  model: 'qwen2.5:14b',
   glide: 0.55,
   sensitivity: 1,
   rulerDensity: 1,
 };
 
 export function loadSettings(): Settings {
+  let s: Settings;
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('lingkuang-settings') || '{}') };
+    s = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('lingkuang-settings') || '{}') };
   } catch {
-    return { ...DEFAULTS };
+    s = { ...DEFAULTS };
   }
+  /* 用户明确要用 14b：旧默认 7b 且未手动改过 → 滚到 14b */
+  if (s.model === 'qwen2.5:7b') s.model = 'qwen2.5:14b';
+  return s;
 }
 export function saveSettings(s: Settings) {
   localStorage.setItem('lingkuang-settings', JSON.stringify(s));

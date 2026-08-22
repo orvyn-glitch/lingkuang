@@ -53,7 +53,20 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function assocStatus(m: string) { status.textContent = m; }
 
   /* 词库命中检测 */
+  /* 词库命中检测 */
   function inLib(_w: string): boolean { return wordLib.has(_w); }
+
+  /* 清洗联想词：去掉首尾符号/空白，只留 1-8 字真词（不靠 \\W，中文会被误判） */
+  function cleanWords(raw: string): string[] {
+    const strip = /^[\s\d\-—.*•·、，。！？、:：;；()（）\[\]【】"'“”‘’]+|[\s\d\-—.*•·、，。！？、:：;；()（）\[\]【】"'“”‘’]+$/g;
+    return raw
+      .split('\n')
+      .map((x) => x.trim())
+      .map((x) => x.replace(strip, ''))
+      .filter((x) => x.length >= 1 && x.length <= 8)
+      .filter((x) => /[\u4e00-\u9fa5a-zA-Z0-9]/.test(x))
+      .slice(0, 7);
+  }
 
   /* 收集子树（拖动整组跟随） */
   function collectTree(rootId: number): Set<number> {
@@ -233,11 +246,11 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         if (!cfg.apiKey) { assocStatus('API 模式需在设置填 Key'); return; }
         const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.apiKey }, body: JSON.stringify({ model: cfg.model, messages, temperature: 0.8, max_tokens: 200 }) });
         if (!r.ok) throw new Error('api ' + r.status);
-        words = ((await r.json()).choices[0].message.content || '').split('\n').map((x: string) => x.trim()).filter(Boolean).slice(0, 7);
+        words = cleanWords((await r.json()).choices[0].message.content || '');
       } else {
         const r = await fetch(cfg.baseUrl.replace(/\/+$/, '') + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: cfg.model, messages, stream: false, options: { temperature: 0.8, num_predict: 200 } }) });
         if (!r.ok) throw new Error('ollama ' + r.status);
-        words = (((await r.json()).message?.content) || '').split('\n').map((x: string) => x.trim()).filter(Boolean).slice(0, 7);
+        words = cleanWords(((await r.json()).message?.content) || '');
       }
     } catch (err) {
       node.expanded = false;
