@@ -275,7 +275,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       let nid: number;
       if (assocGraph!.wordIndex[w] !== undefined) {
         nid = assocGraph!.wordIndex[w];
-        /* 词已存在（可能属别的父）：也把它加为当前词的子层（多对多），确保可见 */
+        /* 词已存在（可能属别的父）：也把它加为当前词的子层。防环：若该词是当前词祖先则跳过 */
+        if (isAncestor(nid, id)) return;
         if (!node.children.includes(nid)) node.children.push(nid);
       } else {
         nid = assocGraph!.nodes.length;
@@ -305,6 +306,18 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     node.expanded = true;
     renderGraph();
     callAssociate(id);
+  }
+
+  /* 判断 target 是否是 ancestor 的祖先（沿 parent 链，防回环） */
+  function isAncestor(ancestorId: number, targetId: number): boolean {
+    let cur: number | null = targetId;
+    let depth = 0;
+    while (cur !== null && depth < 500) {
+      if (cur === ancestorId) return true;
+      cur = assocGraph?.nodes[cur]?.parent ?? null;
+      depth++;
+    }
+    return false;
   }
 
 
