@@ -135,17 +135,20 @@ function renderToolbar(store: Store): void {
       const id = (el as HTMLElement).dataset.tool!;
       const moduleView = document.getElementById('lk-module-view');
       const toolHost = document.getElementById('lk-tool-host');
+      const right = document.querySelector('.lk-right') as HTMLElement | null;
       if (id === 'sandbox') {
-        /* 世界沙盘：隐藏模块覆盖 */
+        /* 世界沙盘：恢复沙盘视图（隐藏模块，恢复右区 + tool-host） */
         if (moduleView) { moduleView.style.display = 'none'; moduleView.innerHTML = ''; }
         if (toolHost) { toolHost.style.display = ''; toolHost.innerHTML = ''; }
+        if (right) right.style.display = '';
         return;
       }
-      /* 其他模块：absolute 覆盖整个 main 区（独立工具，不干扰沙盘） */
+      /* 其他模块：隐藏右区（sandbox/worldbar），模块 flex 占满工具栏右侧（工具栏始终可见） */
       if (moduleView) {
         moduleView.style.display = '';
         moduleView.innerHTML = '';
         if (toolHost) toolHost.style.display = 'none';
+        if (right) right.style.display = 'none';
         openTool(id, moduleView, store);
       }
     });
