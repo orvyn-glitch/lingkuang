@@ -172,14 +172,16 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     svg.setAttribute('viewBox', `0 0 ${WORLD_W} ${WORLD_H}`);
     const nodeById: Record<number, AssocNode> = {};
     assocGraph.nodes.forEach((n) => { nodeById[n.id] = n; });
-    /* 画所有边（不按可见性过滤）——收起时连线保留，点回仍能看到节点间链接 */
+    /* 只画可见节点之间的边——收起节点的连线一并隐藏（视觉干净，只留聚焦链路） */
+    const vis = visibleIds();
     svg.innerHTML = assocGraph.edges
+      .filter((e) => vis.has(e.from) && vis.has(e.to))
       .map((e) => {
         const a = nodeById[e.from], b = nodeById[e.to];
         if (!a || !b) return '';
         const x1 = a.x + (a.w || 70) / 2, y1 = a.y + (a.h || 30) / 2;
         const x2 = b.x + (b.w || 70) / 2, y2 = b.y + (b.h || 30) / 2;
-        return `<path d="M ${x1} ${y1} L ${x2} ${y2}" fill="none" stroke="rgba(58,58,52,0.18)" stroke-width="1.2"/>`;
+        return `<path d="M ${x1} ${y1} L ${x2} ${y2}" fill="none" stroke="rgba(58,58,52,0.25)" stroke-width="1.2"/>`;
       })
       .join('');
   }
