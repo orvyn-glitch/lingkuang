@@ -279,7 +279,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         nid = assocGraph!.nodes.length;
         assocGraph!.wordIndex[w] = nid;
         assocGraph!.nodes.push({
-          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: true,  /* selected 确保新词一定显示 */
+          id: nid, word: w, isRoot: false, parent: id, children: [], expanded: false, selected: false,  /* 普通节点，非选中 */
           x: node.x + (Math.random() - 0.5) * 200,
           y: node.y + (Math.random() - 0.5) * 200,
           vx: 0, vy: 0,
