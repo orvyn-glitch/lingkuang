@@ -69,6 +69,15 @@ ipcMain.handle('data:save', (e, payload) => {
   try {
     const dir = path.dirname(DATA_FILE());
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    /* 自动备份：写前把现有文件轮换备份，保留 3 份（防误操作/崩溃丢数据） */
+    const backup = (n) => DATA_FILE().replace(/\.json$/, `.backup-${n}.json`);
+    if (fs.existsSync(DATA_FILE())) {
+      /* 轮换：3→2, 2→1, 1→0；当前内容备份到 -1 */
+      if (fs.existsSync(backup(2))) fs.rmSync(backup(2), { force: true });
+      if (fs.existsSync(backup(1))) fs.copyFileSync(backup(1), backup(2));
+      if (fs.existsSync(backup(0))) fs.copyFileSync(backup(0), backup(1));
+      fs.copyFileSync(DATA_FILE(), backup(0));
+    }
     fs.writeFileSync(DATA_FILE(), JSON.stringify(payload, null, 2), 'utf8');
     return { ok: true };
   } catch (err) {
