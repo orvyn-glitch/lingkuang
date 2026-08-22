@@ -36,7 +36,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   const stage = host.querySelector('#assoc-stage') as HTMLElement;
   const world = host.querySelector('#assoc-world') as HTMLElement;
   const status = host.querySelector('#assoc-status') as HTMLElement;
-  const svg = world.querySelector('.assoc__lines') as SVGSVGElement;
+  /* 注意：不缓存 svg 引用——renderGraph 会重建 innerHTML，旧引用失效。drawEdges 动态获取。 */
 
   let assocGraph: AssocGraph | null = null;
   let focusedId = 0;
@@ -151,6 +151,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   }
 
   function drawEdges() {
+    const svg = world.querySelector('.assoc__lines') as SVGSVGElement | null;
     if (!svg || !assocGraph) return;
     svg.setAttribute('viewBox', `0 0 ${WORLD_W} ${WORLD_H}`);
     const nodeById: Record<number, AssocNode> = {};
@@ -217,25 +218,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       n.h = (el as HTMLElement).offsetHeight;
       (el as HTMLElement).style.transform = `translate(${n.x}px,${n.y}px)`;
     });
-    const s = world.querySelector('svg') as SVGSVGElement;
-    drawEdgesWith(s);
+    drawEdges();
   }
-  function drawEdgesWith(s: SVGSVGElement) {
-    if (!s || !assocGraph) return;
-    s.setAttribute('viewBox', `0 0 ${WORLD_W} ${WORLD_H}`);
-    const nodeById: Record<number, AssocNode> = {};
-    assocGraph.nodes.forEach((n) => { nodeById[n.id] = n; });
-    const vis = visibleIds();
-    s.innerHTML = assocGraph.edges
-      .filter((e) => vis.has(e.from) && vis.has(e.to))
-      .map((e) => {
-        const a = nodeById[e.from], b = nodeById[e.to];
-        if (!a || !b) return '';
-        return `<path d="M ${a.x + (a.w || 70) / 2} ${a.y + (a.h || 30) / 2} L ${b.x + (b.w || 70) / 2} ${b.y + (b.h || 30) / 2}" fill="none" stroke="rgba(58,58,52,0.25)" stroke-width="1.2"/>`;
-      })
-      .join('');
-  }
-
   /* ── 联想调用（Ollama 双模式）── */
   async function callAssociate(id: number) {
     const node = assocGraph?.nodes[id];
@@ -365,9 +349,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
           world.querySelectorAll('.assoc__node, .assoc__root').forEach((el, i) => {
             if (i === dragNodeId) (el as HTMLElement).style.transform = `translate(${dn.x}px,${dn.y}px)`;
           });
-          // 用带 svg 的 drawEdges
-          const s = world.querySelector('svg') as SVGSVGElement;
-          if (s) drawEdgesWith(s);
+          drawEdges();
         }
         return;
       }
