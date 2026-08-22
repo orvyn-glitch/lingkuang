@@ -105,13 +105,13 @@ export function renderNodeDetail(
 
 function makeFieldCard(k: string, v: string): HTMLElement {
   const card = document.createElement('div');
-  card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;';
+  card.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);box-shadow:var(--elev-raised);overflow:hidden;';
   const head = document.createElement('div');
   head.style.cssText =
-    'padding:2px 8px;font-size:10px;color:var(--accent);font-weight:600;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:rgba(158,194,98,0.08);';
+    'padding:3px 10px;font-size:11px;font-weight:500;font-family:var(--font-mono);border-bottom:1px solid var(--border-soft);background:var(--accent);color:var(--accent-on);';
   head.textContent = k;
   const val = document.createElement('div');
-  val.style.cssText = 'padding:5px 8px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
+  val.style.cssText = 'padding:6px 10px;font-size:var(--text-sm);color:var(--fg);min-height:20px;outline:none;';
   val.textContent = v;
   card.appendChild(head);
   card.appendChild(val);

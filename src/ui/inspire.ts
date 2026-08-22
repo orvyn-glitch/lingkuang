@@ -95,18 +95,15 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
       const picks = combo ? combo[g.t] || {} : rollGroup(g, currentCount(g, gi));
       const rows = Object.keys(picks).map((k) => {
         const locked = locks[k] !== undefined;
-        return `<div class="insp-row${locked ? ' is-locked' : ''}" data-key="${k}" style="display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:var(--radius-sm);${locked ? 'background:rgba(158,194,98,.12);' : ''}">
-          <span style="font-size:var(--text-xs);color:var(--fg-2);min-width:64px;">${k}</span>
-          <span class="insp-val" style="flex:1;font-size:var(--text-sm);color:var(--fg);">${picks[k]}</span>
+        return `<div class="insp-row${locked ? ' is-locked' : ''}" data-key="${k}" style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:var(--text-sm);line-height:1.5;${locked ? 'background:rgba(158,194,98,.12);border-radius:6px;padding:2px 4px;' : ''}">
+          <span class="insp-key">${k}</span>
+          <span class="insp-val" style="flex:1;color:var(--fg);">${picks[k]}</span>
           <button class="insp-assoc" data-word="${picks[k]}" title="语义联想" style="background:none;border:none;color:var(--fg-2);cursor:pointer;font-size:12px;">⚡</button>
           <button class="insp-lock" data-key="${k}" title="${locked ? '解锁' : '锁定：下次随机保留'}" style="background:none;border:none;color:${locked ? 'var(--accent)' : 'var(--fg-2)'};cursor:pointer;font-size:13px;">⚿</button>
         </div>`;
       }).join('');
-      return `<div class="insp-card" style="border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(58,58,52,.05);border-bottom:1px solid var(--border-soft);">
-          <span style="font-size:var(--text-xs);font-weight:600;color:var(--fg);">${g.t}</span>
-          <select class="insp-count" data-g="${gi}" style="margin-left:auto;background:none;border:1px solid var(--border-soft);border-radius:var(--radius-sm);color:var(--fg);font-size:10px;padding:1px 3px;">${countOptions(g, groupCounts[gi])}</select>
-        </div>
+      return `<div class="tool-card">
+        <h3 style="display:flex;align-items:center;">${g.t}<select class="insp-count" data-g="${gi}" style="margin-left:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--fg);font-size:10px;padding:1px 4px;">${countOptions(g, groupCounts[gi])}</select></h3>
         ${rows}</div>`;
     }).join('');
     bindEvents();
