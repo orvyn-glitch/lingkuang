@@ -268,6 +268,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       let nid: number;
       if (assocGraph!.wordIndex[w] !== undefined) {
         nid = assocGraph!.wordIndex[w];
+        /* 词已存在（可能属别的父）：也把它加为当前词的子层（多对多），确保可见 */
+        if (!node.children.includes(nid)) node.children.push(nid);
       } else {
         nid = assocGraph!.nodes.length;
         assocGraph!.wordIndex[w] = nid;
