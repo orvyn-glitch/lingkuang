@@ -38,8 +38,8 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
 
   host.style.overflow = 'auto';
   host.innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100%;">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);flex-wrap:wrap;flex-shrink:0;">
+    <div style="display:flex;flex-direction:column;height:100%;overflow:auto;" id="insp-scroll">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-soft);background:var(--surface-2);flex-wrap:wrap;position:sticky;top:0;z-index:2;flex-shrink:0;">
         <span style="font-size:15px;font-weight:600;color:var(--fg);">灵感触发器</span>
         <span id="insp-status" style="font-size:var(--text-xs);color:var(--fg-2);">加载词库…</span>
         <span style="flex:1;"></span>
@@ -47,8 +47,8 @@ export async function renderInspire(_store: Store, host: HTMLElement): Promise<v
         <button id="insp-save" style="background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 12px;font-size:var(--text-sm);cursor:pointer;">保存组合</button>
         <button id="insp-roll" style="background:var(--accent);color:var(--accent-on);border:none;border-radius:var(--radius-sm);padding:6px 14px;font-size:var(--text-sm);cursor:pointer;">重新生成</button>
       </div>
-      <div id="insp-result" style="flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-content:start;min-height:0;"></div>
-      <div id="insp-assoc" style="height:55vh;border-top:1px solid var(--border-soft);flex-shrink:0;"></div>
+      <div id="insp-result" style="padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-content:start;"></div>
+      <div id="insp-assoc" style="min-height:100vh;border-top:1px solid var(--border-soft);flex-shrink:0;display:flex;flex-direction:column;"></div>
     </div>`;
 
   const status = host.querySelector('#insp-status') as HTMLElement;
