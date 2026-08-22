@@ -1,4 +1,4 @@
-/** 词义联想 · 无限画布 + 力导向节点 + 单线聚焦（完整还原 legacy）
+﻿/** 词义联想 · 无限画布 + 力导向节点 + 单线聚焦（完整还原 legacy）
  * 点击根词 → 展开联想（Ollama/API）；节点可拖拽（组跟随）；Alt+滚轮缩放；拖拽平移
  * 放在灵感触发器生成卡片下方，独立画布区域
  */
@@ -105,27 +105,16 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
-    const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
-    if (parent) {
-      focusedId = id;
-      node.selected = true;
-      parent.focusChildId = id;   /* 收起兄弟 */
-      /* 点击词条：未展开→展开；已展开→重新联想该词新批 */
-      if (!node.expanded) expandNode(id);
-      else refreshNode(id);
+    focusedId = id;
+    /* 已展开 → 收起（折叠子层显示） */
+    if (node.expanded && node.children.length > 0) {
+      node.expanded = false;
+      renderGraph();
+      assocStatus(`收起「${node.word}」`);
       return;
     }
-    /* 根词：恢复全部子层 或 重新联想新批 */
-    focusedId = id;
-    if (node.children.length) {
-      if (node.focusChildId !== null && node.focusChildId !== undefined) {
-        node.focusChildId = null;
-        renderGraph();
-        assocStatus('恢复全部子层');
-      } else {
-        refreshNode(id);
-      }
-    }
+    /* 未展开 → 展开联想 */
+    expandNode(id);
   }
 
   /* ── 力导向 ── */
@@ -300,44 +289,6 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     callAssociate(id);
   }
 
-  /* 移除节点子树（自身保留；skipSelected 跳过选中支线）——点自己重新联想时用 */
-  function removeSubtree(id: number, skipSelected: boolean) {
-    const node = assocGraph?.nodes[id];
-    if (!node) return;
-    const toRemove = new Set<number>();
-    node.children.slice().forEach((cid) => {
-      const collect = (nid: number) => {
-        const n = assocGraph?.nodes[nid];
-        if (!n || toRemove.has(nid)) return;
-        if (skipSelected && n.selected) return;
-        toRemove.add(nid);
-        n.children.slice().forEach(collect);
-      };
-      collect(cid);
-    });
-    if (!toRemove.size) return;
-    assocGraph!.nodes = assocGraph!.nodes.filter((n) => !toRemove.has(n.id));
-    assocGraph!.edges = assocGraph!.edges.filter((e) => !toRemove.has(e.from) && !toRemove.has(e.to));
-    const oldToNew: Record<number, number> = {};
-    assocGraph!.nodes.forEach((n, i) => { oldToNew[n.id] = i; });
-    assocGraph!.nodes.forEach((n, i) => { n.id = i; n.children = n.children.filter((c) => !toRemove.has(c)).map((c) => oldToNew[c]); });
-    assocGraph!.edges = assocGraph!.edges.map((e) => ({ from: oldToNew[e.from] ?? e.from, to: oldToNew[e.to] ?? e.to }));
-    assocGraph!.wordIndex = {};
-    assocGraph!.nodes.forEach((n) => { assocGraph!.wordIndex[n.word] = n.id; });
-    if (focusedId !== null) focusedId = assocGraph!.nodes.some((n) => n.id === focusedId) ? focusedId : 0;
-    renderGraph();
-  }
-
-  /* 重新联想：删该词旧子层 → 重新展开（每次新一批词） */
-  function refreshNode(id: number) {
-    const node = assocGraph?.nodes[id];
-    if (!node) return;
-    removeSubtree(id, true);
-    if (assocGraph && assocGraph.nodes[id]) {
-      assocGraph.nodes[id].expanded = false;
-      expandNode(id);
-    }
-  }
 
   /* 移除子树（自身保留，skipSelected 跳过选中支线） */
   /* ── 交互事件 ── */
