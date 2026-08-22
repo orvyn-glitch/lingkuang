@@ -117,16 +117,17 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       else renderGraph();
       return;
     }
-    /* 点父级/根：恢复全部子层 */
+    /* 点父级/根：也触发独立展开（二次联想）——恢复收起或展开 */
     if (node.children.length) {
       if (node.focusChildId !== null && node.focusChildId !== undefined) {
         node.focusChildId = null;
         renderGraph();
         assocStatus('恢复全部子层');
-      } else if (!node.expanded) {
-        node.expanded = true;
-        renderGraph();
+      } else {
+        expandNode(id);   /* 点根词等前级：独立展开联想新分支 */
       }
+    } else if (!node.expanded) {
+      expandNode(id);
     }
   }
 
@@ -299,7 +300,6 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function expandNode(id: number) {
     const node = assocGraph?.nodes[id];
     if (!node) return;
-    if (node.expanded && node.children.length > 0) return;   /* 已展开且已有子词 → 不重复联想 */
     node.expanded = true;
     renderGraph();
     callAssociate(id);
