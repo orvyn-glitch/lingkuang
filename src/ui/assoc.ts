@@ -105,26 +105,20 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
-    if (id === focusedId) { refreshNode(id); return; }
-    focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
+    /* 确定性：点击词条一定触发联想展开（未展开→长新层；已展开/聚焦→重新联想） */
     if (parent) {
-      /* 点击词条：未展开 → 从此处长出联想分支；已展开 → 聚焦（保留，不删不重roll） */
+      focusedId = id;
       node.selected = true;
       parent.focusChildId = id;
-      if (!node.expanded) expandNode(id);
-      else renderGraph();
+      expandNode(id);
       return;
     }
-    if (node.children.length) {
-      if (node.focusChildId !== null && node.focusChildId !== undefined) {
-        node.focusChildId = null;
-        renderGraph();
-        assocStatus('恢复全部子层');
-      } else {
-        refreshNode(id);
-      }
-    }
+    /* 根词：聚焦或刷新 */
+    focusedId = id;
+    if (id === focusedId) { /* 已聚焦根词 */ }
+    if (!node.expanded) expandNode(id);
+    else if (node.children.length) renderGraph();
   }
 
   /* ── 力导向 ── */
@@ -291,7 +285,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
 
   function expandNode(id: number) {
     const node = assocGraph?.nodes[id];
-    if (!node || node.expanded) return;
+    if (!node) return;
     node.expanded = true;
     renderGraph();
     callAssociate(id);
@@ -398,12 +392,13 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       if (scroller) scroller.scrollTop += e.deltaY;
     }, { passive: false });
     stage.addEventListener('click', (e) => {
-      if (suppressClick) return;
       const nodeEl = (e.target as HTMLElement).closest('.assoc__node, .assoc__root');
       if (nodeEl && assocGraph) {
+        if (suppressClick) return;   // 拖拽后的 click 抑制
         onNodeClick(parseInt((nodeEl as HTMLElement).dataset.id!, 10));
         return;
       }
+      if (suppressClick) return;
       const store = (e.target as HTMLElement).closest('.store');
       if (store) {
         const word = (e.target as HTMLElement).closest('.assoc__node')?.textContent?.replace('存', '') ?? '';
