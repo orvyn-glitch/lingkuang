@@ -100,32 +100,29 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
     return vis;
   }
 
-  /* ── 点击节点（单线聚焦状态机）：
-     点未展开词条 → 展开联想（收起兄弟）
-     点已聚焦词条 → 重新联想该词（新一批 d1d2d3）
-     点父级（已收起） → 恢复显示全部子层 / 再点重新联想 ── */
+  /* ── 点击节点（单线聚焦状态机）── */
   function onNodeClick(id: number) {
     if (!assocGraph) return;
     const node = assocGraph.nodes[id];
     if (!node) return;
-    if (id === focusedId) { refreshNode(id); return; }   /* 点自己=重新联想新批 */
-    focusedId = id;
     const parent = node.parent !== null ? assocGraph.nodes[node.parent] : null;
     if (parent) {
+      focusedId = id;
       node.selected = true;
-      parent.focusChildId = id;               /* 收起同级兄弟 */
-      if (!node.expanded) expandNode(id);      /* 未展开 → 展开联想 b1b2b3 */
-      else renderGraph();
+      parent.focusChildId = id;   /* 收起兄弟 */
+      /* 点击词条：未展开→展开；已展开→重新联想该词新批 */
+      if (!node.expanded) expandNode(id);
+      else refreshNode(id);
       return;
     }
-    /* 根词/无父层：恢复全部子层 或 重新联想 */
+    /* 根词：恢复全部子层 或 重新联想新批 */
+    focusedId = id;
     if (node.children.length) {
       if (node.focusChildId !== null && node.focusChildId !== undefined) {
-        node.focusChildId = null;             /* 收起状态 → 恢复全部子层 */
+        node.focusChildId = null;
         renderGraph();
         assocStatus('恢复全部子层');
       } else {
-        /* 已展开 → 重新联想（删旧子层展新批 d1d2d3） */
         refreshNode(id);
       }
     }
