@@ -28,10 +28,10 @@ export function renderShell(store: Store, host: HTMLElement): void {
               <div class="lk-pane-head">地图 <span class="lk-ph">（占位）</span></div>
               <div class="lk-pane-body lk-placeholder">地图视图 · Leaflet 重构</div>
             </div>
-            <div class="lk-module-view" id="lk-module-view" style="display:none;"></div>
           </section>
         </div>
         <aside class="lk-tool-host" id="lk-tool-host"></aside>
+        <div class="lk-module-view" id="lk-module-view" style="display:none;"></div>
       </main>
     </div>`;
 
@@ -137,18 +137,16 @@ function renderToolbar(store: Store): void {
       const sandbox = document.getElementById('lk-sandbox');
       const toolHost = document.getElementById('lk-tool-host');
       if (id === 'sandbox') {
-        /* 世界沙盘：恢复沙盘视图（隐藏模块覆盖 + 恢复 tool-host） */
+        /* 世界沙盘：隐藏模块覆盖 */
         if (moduleView) { moduleView.style.display = 'none'; moduleView.innerHTML = ''; }
         if (toolHost) { toolHost.style.display = ''; toolHost.innerHTML = ''; }
-        sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = ''));
         return;
       }
-      /* 其他模块：全屏覆盖沙盒（独立工具，与沙盘无并列关系）+ 隐藏 tool-host */
+      /* 其他模块：absolute 覆盖整个 main 区（独立工具，不干扰沙盘） */
       if (moduleView) {
         moduleView.style.display = '';
         moduleView.innerHTML = '';
-        sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = 'none'));
-        if (toolHost) toolHost.style.display = 'none';   /* 模块全屏时右侧附属栏不显示 */
+        if (toolHost) toolHost.style.display = 'none';
         openTool(id, moduleView, store);
       }
     });
