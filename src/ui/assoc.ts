@@ -261,7 +261,7 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         words = cleanWords(text);
       }
     } catch (err) {
-      node.expanded = false;
+      /* 联想失败：不清 expanded（否则已展开的词变收起、新词也不显示）——只提示，保留展开状态 */
       renderGraph();
       assocStatus('联想失败：' + (err instanceof Error ? err.message : String(err)));
       return;
