@@ -137,17 +137,18 @@ function renderToolbar(store: Store): void {
       const sandbox = document.getElementById('lk-sandbox');
       const toolHost = document.getElementById('lk-tool-host');
       if (id === 'sandbox') {
-        /* 世界沙盘：恢复沙盘视图（隐藏模块覆盖） */
+        /* 世界沙盘：恢复沙盘视图（隐藏模块覆盖 + 恢复 tool-host） */
         if (moduleView) { moduleView.style.display = 'none'; moduleView.innerHTML = ''; }
-        if (toolHost) toolHost.innerHTML = '';
+        if (toolHost) { toolHost.style.display = ''; toolHost.innerHTML = ''; }
         sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = ''));
         return;
       }
-      /* 其他模块：全屏覆盖沙盒（独立工具，与沙盘无并列关系） */
+      /* 其他模块：全屏覆盖沙盒（独立工具，与沙盘无并列关系）+ 隐藏 tool-host */
       if (moduleView) {
         moduleView.style.display = '';
         moduleView.innerHTML = '';
         sandbox?.querySelectorAll('.lk-pane').forEach((p) => ((p as HTMLElement).style.display = 'none'));
+        if (toolHost) toolHost.style.display = 'none';   /* 模块全屏时右侧附属栏不显示 */
         openTool(id, moduleView, store);
       }
     });
