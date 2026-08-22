@@ -91,30 +91,41 @@ function renderTimelineTabs(store: Store): void {
   const ws = currentWorld(store);
   const ids = (ws.order ?? []).filter((id) => ws.timelines[id]);
   const active = activeTimelineId(store);
-  const tabsHtml = ids
-    .map(
-      (id) =>
-        `<button class="lk-tl-tab${id === active ? ' is-active' : ''}" data-tl="${id}">${ws.timelines[id]?.name ?? '?'}<span class="cnt">${ws.timelines[id]?.nodes.length ?? 0}</span></button>`
-    )
-    .join('');
-  head.innerHTML =
-    `<span class="lk-pane-title">世界沙盘 · 时间线</span><button class="lk-tl-tab is-new" id="lk-undo" title="撤销 (Ctrl+Z)">↶</button><button class="lk-tl-tab is-new" id="lk-redo" title="重做 (Ctrl+Y)">↷</button><span class="lk-tl-tabs">${tabsHtml}<button class="lk-tl-tab is-new" id="lk-tl-new" title="新建时间线">＋</button></span><button class="lk-tl-tab is-new" id="lk-node-new" title="新建节点">＋节点</button>`;
-  head.querySelector('#lk-undo')?.addEventListener('click', () => store.undo());
-  head.querySelector('#lk-redo')?.addEventListener('click', () => store.redo());
-  head.querySelectorAll('.lk-tl-tab[data-tl]').forEach((el) => {
-    el.addEventListener('click', () => store.setActiveTimeline((el as HTMLElement).dataset.tl!));
-  });
-  const newBtn = head.querySelector('#lk-tl-new');
-  if (newBtn) newBtn.addEventListener('click', () => addTimeline(store, '新时间线'));
-  const nodeBtn = head.querySelector('#lk-node-new');
-  if (nodeBtn) {
-    nodeBtn.addEventListener('click', () => {
+  /* 首次构建完整 head（含 tabs 容器 + 撤销/重做/节点按钮）；之后只更新 tabs，不清掉沙盘工具的 appendChild 节点 */
+  let tabs = head.querySelector('.lk-tl-tabs') as HTMLElement | null;
+  let undoBtn = head.querySelector('#lk-undo') as HTMLElement | null;
+  let redoBtn = head.querySelector('#lk-redo') as HTMLElement | null;
+  let nodeBtn = head.querySelector('#lk-node-new') as HTMLElement | null;
+  if (!tabs) {
+    head.innerHTML =
+      `<span class="lk-pane-title">世界沙盘 · 时间线</span><button class="lk-tl-tab is-new" id="lk-undo" title="撤销 (Ctrl+Z)">↶</button><button class="lk-tl-tab is-new" id="lk-redo" title="重做 (Ctrl+Y)">↷</button><span class="lk-tl-tabs"></span><button class="lk-tl-tab is-new" id="lk-node-new" title="新建节点">＋节点</button>`;
+    tabs = head.querySelector('.lk-tl-tabs') as HTMLElement;
+    undoBtn = head.querySelector('#lk-undo');
+    redoBtn = head.querySelector('#lk-redo');
+    nodeBtn = head.querySelector('#lk-node-new');
+    undoBtn?.addEventListener('click', () => store.undo());
+    redoBtn?.addEventListener('click', () => store.redo());
+    nodeBtn?.addEventListener('click', () => {
       const id = activeTimelineId(store);
       const tl = id ? currentWorld(store).timelines[id] : undefined;
       if (!tl) return;
       const toolHost = document.getElementById('lk-tool-host');
       if (toolHost && id) renderNodeForm(store, toolHost, id, tl.name);
     });
+  }
+  /* 只更新 tabs 容器内容（不覆盖整个 head，保留沙盘工具 appendChild 节点） */
+  if (tabs) {
+    const tabsHtml = ids
+      .map(
+        (id) =>
+          `<button class="lk-tl-tab${id === active ? ' is-active' : ''}" data-tl="${id}">${ws.timelines[id]?.name ?? '?'}<span class="cnt">${ws.timelines[id]?.nodes.length ?? 0}</span></button>`
+      )
+      .join('');
+    tabs.innerHTML = tabsHtml + `<button class="lk-tl-tab is-new" id="lk-tl-new" title="新建时间线">＋</button>`;
+    tabs.querySelectorAll('.lk-tl-tab[data-tl]').forEach((el) => {
+      el.addEventListener('click', () => store.setActiveTimeline((el as HTMLElement).dataset.tl!));
+    });
+    tabs.querySelector('#lk-tl-new')?.addEventListener('click', () => addTimeline(store, '新时间线'));
   }
 }
 
