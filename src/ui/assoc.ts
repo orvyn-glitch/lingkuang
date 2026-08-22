@@ -85,21 +85,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 选中路径（selected）永远可见——保留思维链；根始终显示 */
-    assocGraph.nodes.forEach((n) => {
-      if (n.selected) vis.add(n.id);
-      if (n.isRoot) vis.add(n.id);
-    });
-    /* 展开节点的子层：受 focusChildId 限制（单线聚焦——点某词，其他兄弟收起）。
-       focusChildId 为 undefined/null 时表示不限制（显示全部子层），有值才只显示它指向的。 */
-    assocGraph.nodes.forEach((n) => {
-      if (!n.expanded) return;
-      n.children.forEach((c) => {
-        if (vis.has(c)) return;
-        if (n.focusChildId !== null && n.focusChildId !== undefined && n.focusChildId !== c) return;
-        vis.add(c);
-      });
-    });
+    /* 所有已创建节点都显示（不物理隐藏——聚焦靠 selected 高亮，节点和连线都保留可见） */
+    assocGraph.nodes.forEach((n) => vis.add(n.id));
     return vis;
   }
 
