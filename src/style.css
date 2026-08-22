@@ -251,6 +251,9 @@ body {
   padding-left: 4px;
   cursor: pointer;
 }
+/* 视觉聚焦：非焦点路径的词淡化（不隐藏，保留多分支数据） */
+.assoc__node.is-dim, .assoc__root.is-dim { opacity: 0.25; }
+.assoc__node.is-dim:hover, .assoc__root.is-dim:hover { opacity: 0.6; }
 
 /* ══════════ 画布：节点 + 时间线照搬 legacy；循环/范围条/标尺重新设计 ══════════ */
 .tl__n {

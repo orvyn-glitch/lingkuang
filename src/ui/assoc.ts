@@ -85,18 +85,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
   function visibleIds(): Set<number> {
     const vis = new Set<number>();
     if (!assocGraph || !assocGraph.nodes.length) return vis;
-    /* 从根 DFS：节点显示；若节点 expanded 则递归其子层，否则只显示自身（子层收起）。
-       这样：点过的词（expanded）展开其联想层，未点的词只显示，形成自然链。 */
-    const walk = (nid: number) => {
-      if (vis.has(nid)) return;
-      vis.add(nid);
-      const n = assocGraph!.nodes[nid];
-      if (n && n.expanded) n.children.forEach(walk);
-    };
-    assocGraph.nodes.forEach((n) => { if (n.isRoot) walk(n.id); });
-    /* 若焦点词不在根树（异常），确保显示它 */
-    if (focusedId !== null && focusedId !== undefined && !vis.has(focusedId)) walk(focusedId);
-    if (!vis.size) assocGraph.nodes.forEach((n) => walk(n.id));
+    /* 所有节点都显示（聚焦=视觉淡化非焦点路径，不物理隐藏——多分支数据全保留） */
+    assocGraph.nodes.forEach((n) => vis.add(n.id));
     return vis;
   }
 
@@ -220,6 +210,8 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
         let extra = '';
         if (n.id === focusedId) extra += ' is-focus';
         if (n.selected) extra += ' is-selected';
+        /* 视觉聚焦：非焦点路径的词淡化（不隐藏，保留多分支） */
+        if (focusedId !== null && focusedId !== undefined && n.id !== focusedId && !isOnFocusPath(n.id)) extra += ' is-dim';
         const hidden = vis.has(n.id) ? '' : ' style="display:none"';
         const staged = (n as any)._staged;
         const store = (!n.isRoot && !inLib(n.word) && !staged) ? '<span class="store" title="暂存到词库">存</span>' : '';
@@ -311,6 +303,24 @@ export function mountAssocCanvas(host: HTMLElement, getWord: () => string): void
       cur = assocGraph?.nodes[cur]?.parent ?? null;
       depth++;
     }
+    return false;
+  }
+
+  /* 是否在焦点路径上（根→focusedId 的祖先链 ∪ focusedId 自身 ∪ 它展开的子层）——这些高亮不淡化 */
+  function isOnFocusPath(id: number): boolean {
+    if (focusedId === null || focusedId === undefined) return true;   /* 未聚焦则全部正常 */
+    if (id === focusedId) return true;
+    /* 向上找：id 是否 focusedId 的祖先 */
+    let cur: number | null = focusedId;
+    let d = 0;
+    while (cur !== null && cur !== undefined && d < 500) {
+      if (cur === id) return true;   /* id 是焦点的祖先（路径上的中间节点） */
+      cur = assocGraph?.nodes[cur]?.parent ?? null;
+      d++;
+    }
+    /* id 是否 focusedId 展开的子层（当前聚焦级） */
+    const f = assocGraph?.nodes[focusedId];
+    if (f && f.children.includes(id)) return true;
     return false;
   }
 
